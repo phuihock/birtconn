@@ -4,10 +4,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.codekaki.odoo</groupId>
-    <artifactId>birt-ws</artifactId>
+    <artifactId>birt-rs</artifactId>
     <packaging>war</packaging>
     <version>1.0-SNAPSHOT</version>
-    <name>birt-ws</name>
+    <name>birt-rs</name>
 
     <dependencyManagement>
         <dependencies>
