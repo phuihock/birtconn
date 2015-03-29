@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure_9_0.dtd">
+
+<Configure class="org.eclipse.jetty.webapp.WebAppContext">
+    <New class="org.eclipse.jetty.plus.jndi.Resource">
+        <Arg>jdbc/${db.name}</Arg>
+        <Arg>
+            <New class="org.postgresql.ds.PGConnectionPoolDataSource">
+                <Set name="User">${db.user}</Set>
+                <Set name="Password">${db.pass}</Set>
+                <Set name="DatabaseName">${db.name}</Set>
+                <Set name="ServerName">${db.host}</Set>
+                <Set name="PortNumber">${db.port}</Set>
+
+            </New>
+        </Arg>
+    </New>
+
+    <New class="org.eclipse.jetty.plus.jndi.EnvEntry">
+        <Arg>birt/home</Arg>
+        <Arg>${birt.home}</Arg>
+    </New>
+
+    <New class="org.eclipse.jetty.plus.jndi.EnvEntry">
+        <Arg>birt/reports</Arg>
+        <Arg>${birt.reports}</Arg>
+    </New>
+
+    <New class="org.eclipse.jetty.plus.jndi.EnvEntry">
+        <Arg>birt/output</Arg>
+        <Arg>${birt.output}</Arg>
+    </New>
+</Configure>

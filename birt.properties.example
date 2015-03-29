@@ -1,0 +1,6 @@
+db.name=
+db.user=
+db.pass=
+db.host=localhost
+db.port=5432
+birt.home=
