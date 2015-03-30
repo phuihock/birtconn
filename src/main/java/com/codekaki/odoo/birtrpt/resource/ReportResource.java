@@ -46,7 +46,7 @@ import org.eclipse.birt.report.engine.api.IReportEngineFactory;
 import org.eclipse.birt.report.engine.api.IReportRunnable;
 import org.eclipse.birt.report.engine.api.ReportRunner;
 
-@Path("/birt/report")
+@Path("/report")
 public class ReportResource {
     static protected Logger logger = Logger.getLogger(ReportRunner.class.getName());
 
@@ -80,13 +80,13 @@ public class ReportResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public JsonArray parameters(@QueryParam("rptdesign") String rptdesign) {
-        if (rptdesign == null) {
+    public JsonArray parameters(@QueryParam("report_file") String report_file) {
+        if (report_file == null) {
             return EMPTY_JSON_ARRAY;
         }
 
         ReportParametersInspector inspector = new ReportParametersInspector(getReportEngine());
-        IReportRunnable reportRunnable = getReportDesign(rptdesign);
+        IReportRunnable reportRunnable = getReportDesign(report_file);
         return inspector.inspectParameters(reportRunnable);
     }
     
@@ -95,7 +95,7 @@ public class ReportResource {
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response create(final JsonObject args) {
-        String rptdesign = args.getString("rptdesign", null);
+        String report_file = args.getString("report_file", null);
         String format = args.getString("format", "PDF");
         String htmlType = args.getString("htmlType", null);
         String encoding = args.getString("encoding", "UTF-8");
@@ -109,13 +109,13 @@ public class ReportResource {
             inputValues.put(entry.getKey(), val);
         }
 
-        IReportRunnable reportRunnable = getReportDesign(rptdesign);
+        IReportRunnable reportRunnable = getReportDesign(report_file);
         ReportGenerator generator = new ReportGenerator(getReportEngine(), encoding, locale);
 
         try {
             String path = buildTargetFilePath(UUID.randomUUID().toString(), format).getPath();
             generator.run(reportRunnable, format, htmlType, path, inputValues);
-            return buildFileResponseOk(rptdesign, path, format);
+            return buildFileResponseOk(report_file, path, format);
         } catch (NamingException e) {
             logger.log(Level.SEVERE, e.getMessage(), e);
         } catch (EngineException e) {
@@ -124,12 +124,12 @@ public class ReportResource {
         return Response.status(Response.Status.BAD_REQUEST).build();
     }
     
-    IReportRunnable getReportDesign(String rptdesign) {
+    IReportRunnable getReportDesign(String report_file) {
         java.nio.file.Path path = null;
         try {
             Context ctx = new InitialContext();
             String reportsDirectory = (String) ctx.lookup("java:comp/env/birt/reports");
-            path = Paths.get(reportsDirectory, rptdesign).normalize();
+            path = Paths.get(reportsDirectory, report_file).normalize();
             if (path != null) {
                 return getReportEngine().openReportDesign(path.toFile().getPath());
             }
@@ -193,7 +193,7 @@ public class ReportResource {
     }
 
 
-    Response buildFileResponseOk(String rptdesign, final String path, final String format) {
+    Response buildFileResponseOk(String report_file, final String path, final String format) {
         StreamingOutput stream = new StreamingOutput() {
             @Override
             public void write(OutputStream output) throws IOException {

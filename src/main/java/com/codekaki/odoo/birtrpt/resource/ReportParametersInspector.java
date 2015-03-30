@@ -45,8 +45,8 @@ public class ReportParametersInspector {
         this.reportEngine = reportEngine;
     }
     
-    IReportRunnable openReportDesign(String rptdesign) throws EngineException{
-        return reportEngine.openReportDesign(rptdesign);
+    IReportRunnable openReportDesign(String report_file) throws EngineException{
+        return reportEngine.openReportDesign(report_file);
     }
     
     void shutdown(){
@@ -220,7 +220,7 @@ public class ReportParametersInspector {
         paramObjBuilder.add("helpText", helpText != null? helpText : "");
         
         selectionList = paramDefTask.getSelectionList(name);
-        if(selectionList != null && !selectionList.isEmpty()){
+        if(selectionList != null){
             JsonArrayBuilder selectionListBuilder = Json.createArrayBuilder();
             JsonArrayBuilder choiceBuilder = Json.createArrayBuilder();
             for(IParameterSelectionChoice choice : selectionList){
