@@ -38,11 +38,16 @@ class report_birt_report_wizard(osv.osv_memory):
                 for param in parameters:
                     name = param['name']
                     meta = {}
-                    if param['controlType'] == 'list box':
+                    if param['controlType'] in ['list box', 'check box', 'radio button']:
                         meta['type'] = 'selection'
+
+                        # it seems key must be a string, or else the dropdown box will not
+                        # display the choices correctly
+                        # meta['selection'] = [(str(x), y) for (x, y) in param['selection']]
                         meta['selection'] = param['selection']
                     else:
-                        meta['type'] = param['dataType']
+                        meta['type'] = param['fieldType']
+
                     meta['string'] = param['promptText']
                     meta['required'] = param['required']
                     meta['help'] = param['helpText']
@@ -76,12 +81,13 @@ class report_birt_report_wizard(osv.osv_memory):
             return res
 
         xarch = etree.XML(res['arch'])
-        group = xarch.xpath("//group")[0]
+        parameters_grp = xarch.xpath('//group[@name="parameters"]')[0]
 
         for field, descriptor in self.fields_get(cr, uid, context=context).iteritems():
-            etree.SubElement(group, 'field', name=field)
-            if descriptor['type'] == 'text':
-                etree.SubElement(group, 'newline')
+            el = etree.SubElement(parameters_grp, 'field', name=field)
+            if field == 'time':
+                # use our custom time widget
+                el.set('widget', 'timepicker')
 
         xarch, xfields = self._view_look_dom_arch(cr, uid, xarch, view_id, context=context)
         res['fields'] = xfields
