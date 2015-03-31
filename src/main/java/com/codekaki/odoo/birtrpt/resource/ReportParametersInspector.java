@@ -60,6 +60,7 @@ public class ReportParametersInspector {
         Collection<IParameterDefnBase> coll = paramDefTask.getParameterDefns(true);
         java.util.Iterator<IParameterDefnBase> it = coll.iterator();
         JsonArrayBuilder parametersBuilder = Json.createArrayBuilder();
+        
         while(it.hasNext()){
             JsonObjectBuilder paramObjBuilder = Json.createObjectBuilder();
             IParameterDefnBase paramDefBase = it.next();
@@ -80,67 +81,77 @@ public class ReportParametersInspector {
         return parametersBuilder.build();
     }
     
-    private String setDefaultValue(JsonObjectBuilder jsonObjectBuilder, IParameterDefn param, Object defaultValue){
+    private String lookupFieldType(IParameterDefn param){
         /*
         _type = 'unknown'
         _type = 'boolean'
         _type = 'integer'
-        _type = 'reference'
         _type = 'char'
         _type = 'text'
-        _type = 'html'
         _type = 'float'
         _type = 'date'
         _type = 'datetime'
-        _type = 'binary'
-        _type = 'selection'
          */
-        String dataType = "";
         switch(param.getDataType()){
-        case IParameterDefn.TYPE_ANY:
-            dataType = "unknown";
-            break;
-        case IParameterDefn.TYPE_STRING:
-            dataType = "char";
-            break;
-        case IParameterDefn.TYPE_FLOAT:
-            dataType = "float";
-            break;
-        case IParameterDefn.TYPE_DECIMAL:
-            dataType = "float";
-            break;
-        case IParameterDefn.TYPE_DATE_TIME:
-            dataType = "datetime";
-            defaultValue = timestampFormat.format(defaultValue);  // ISO 8601
-            break;
         case IParameterDefn.TYPE_BOOLEAN:
-            dataType = "boolean";
-            break;
+            return "boolean";
         case IParameterDefn.TYPE_INTEGER:
-            dataType = "integer";
-            break;
+            return "integer";
+        case IParameterDefn.TYPE_DECIMAL:
+        case IParameterDefn.TYPE_FLOAT:
+            return "float";
+        case IParameterDefn.TYPE_DATE_TIME:
+            return "datetime";
         case IParameterDefn.TYPE_DATE:
-            dataType = "date";
-            defaultValue = dateFormat.format(defaultValue);  // ISO 8601
-            break;
+            return "date";
         case IParameterDefn.TYPE_TIME:
-            dataType = "datetime";
-            defaultValue = timestampFormat.format(defaultValue);  // ISO 8601
-            break;
+            return "time";
+        case IParameterDefn.TYPE_STRING:
+            return "char";
+        default:
+            return "char";
+        }
+    }
+    
+    private Class<?> lookupJsonMethodValueArgClass(Object v){
+        Class<?>[][] classes = {
+                {BigDecimal.class, BigDecimal.class},
+                {BigInteger.class, BigInteger.class}, 
+                {Boolean.class, boolean.class}, 
+                {Double.class, double.class}, 
+                {Integer.class, int.class}, 
+                {Long.class, long.class}, 
+                {String.class, String.class}
+        };
+        
+        Class<?> clz = Object.class;
+        for(Class<?>[] map : classes){
+            if(v.getClass() == map[0]){
+                return map[1];
+            }
         }
         
+        return null;
+    }
+    
+    private void setDefaultValue(JsonObjectBuilder jsonObjectBuilder, IParameterDefn param, Object defaultValue){
         if(defaultValue != null){
-            try {
-                Method method = JsonObjectBuilder.class.getMethod("add", String.class, defaultValue.getClass());
-                method.invoke(jsonObjectBuilder, "defaultValue", defaultValue);
-            } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                e.printStackTrace();
+            Class<?> clz = lookupJsonMethodValueArgClass(defaultValue);
+            if(clz != null){
+                try{
+                    Method method = JsonObjectBuilder.class.getMethod("add", String.class, clz);
+                    method.invoke(jsonObjectBuilder, "defaultValue", defaultValue);
+                } catch(NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e){
+                    e.printStackTrace();
+                }
+            }
+            else{
+                logger.log(Level.WARNING, "Can't set default value. There is no add(String, " + defaultValue.getClass().getName() + ") method.");
             }
         }
         else{
             jsonObjectBuilder.addNull("defaultValue");
         }
-        return dataType;
     }
     
     private void push(JsonArrayBuilder jsonArrayBuilder, Object obj){
@@ -148,21 +159,17 @@ public class ReportParametersInspector {
             jsonArrayBuilder.addNull();
         }
         else{
-            Class<?>[] argCls = {BigDecimal.class, BigInteger.class, Boolean.class, Double.class, Integer.class, Long.class, String.class};
-            boolean hasSuchMethod = false;
-            for(Class<?> cls : argCls){
-                if(obj.getClass() == cls){
-                    hasSuchMethod = true;
-                }
-            }
-            
-            if(hasSuchMethod){
+            Class<?> clz = lookupJsonMethodValueArgClass(obj);
+            if(clz != null){
                 try{
-                    Method method = JsonArrayBuilder.class.getMethod("add", obj.getClass());
+                    Method method = JsonArrayBuilder.class.getMethod("add", clz);
                     method.invoke(jsonArrayBuilder, obj);
                 } catch(NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e){
                     e.printStackTrace();
                 }
+            }
+            else{
+                logger.log(Level.WARNING, "Can't add array item. There is no add(String, " + obj.getClass().getName() + ") method.");
             }
         }
     }
@@ -171,8 +178,8 @@ public class ReportParametersInspector {
         String name = paramDefBase.getName();
         String promptText = paramDefBase.getPromptText();
         String type = "";
-        String controlType = "";
-        String dataType = "";
+        String controlType = "text box";
+        String fieldType = "";
         Boolean isRequired = true;;
         String helpText = paramDefBase.getHelpText();
         Object defaultValue = null;
@@ -184,7 +191,8 @@ public class ReportParametersInspector {
             
             IScalarParameterDefn param = (IScalarParameterDefn) paramDefBase;
             defaultValue = paramDefTask.getDefaultValue(param);
-            dataType = setDefaultValue(paramObjBuilder, param, defaultValue);
+            fieldType = lookupFieldType(param); 
+            setDefaultValue(paramObjBuilder, param, defaultValue);
             
             switch(param.getControlType()){
             case IScalarParameterDefn.LIST_BOX:
@@ -200,6 +208,7 @@ public class ReportParametersInspector {
                 controlType = "radio button";
                 break;
             default:
+                controlType = "text box";
                 break;
             }
             isRequired = param.isRequired();
@@ -210,7 +219,7 @@ public class ReportParametersInspector {
             type = "filter";
             break;
         default:
-            type = "Unknown <" + paramDefBase.getParameterType() + ">";
+            type = "unknown <" + paramDefBase.getParameterType() + ">";
         }
         
         paramObjBuilder.add("name", name);
@@ -232,7 +241,7 @@ public class ReportParametersInspector {
             paramObjBuilder.add("selection", selectionListBuilder);
         }
         paramObjBuilder.add("controlType", controlType);
-        paramObjBuilder.add("dataType", dataType);
-        logger.log(Level.FINE, name + ", " + type + "<" + dataType + ">, "  + controlType + ",  [" + defaultValue + "]");
+        paramObjBuilder.add("fieldType", fieldType);
+        logger.log(Level.FINE, name + ", " + type + "<" + fieldType + ">, "  + controlType + ",  [" + defaultValue + "]");
     }
 }
