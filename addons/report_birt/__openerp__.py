@@ -17,9 +17,10 @@ This module allows users to generate reports designed in Eclipse Birt
         'wizard/report_birt_view.xml',
         'wizard/report_birt_data.xml',
     ],
-    'demo': [],
-    'test': [],
     'css': [],
+    'js': [
+        'static/src/js/widgets.js',
+    ],
     'images': [],
     'installable': True,
     'application': True,
