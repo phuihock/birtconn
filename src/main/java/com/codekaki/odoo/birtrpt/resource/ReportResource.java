@@ -7,21 +7,16 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.json.Json;
 import javax.json.JsonArray;
-import javax.json.JsonNumber;
 import javax.json.JsonObject;
-import javax.json.JsonString;
-import javax.json.JsonValue;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -38,13 +33,17 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.eclipse.birt.core.exception.BirtException;
 import org.eclipse.birt.core.framework.Platform;
-import org.eclipse.birt.core.script.ParameterAttribute;
 import org.eclipse.birt.report.engine.api.EngineConfig;
 import org.eclipse.birt.report.engine.api.EngineException;
+import org.eclipse.birt.report.engine.api.IGetParameterDefinitionTask;
+import org.eclipse.birt.report.engine.api.IParameterDefn;
+import org.eclipse.birt.report.engine.api.IParameterDefnBase;
+import org.eclipse.birt.report.engine.api.IParameterGroupDefn;
 import org.eclipse.birt.report.engine.api.IReportEngine;
 import org.eclipse.birt.report.engine.api.IReportEngineFactory;
 import org.eclipse.birt.report.engine.api.IReportRunnable;
 import org.eclipse.birt.report.engine.api.ReportRunner;
+import org.eclipse.core.internal.registry.RegistryProviderFactory;
 
 @Path("/report")
 public class ReportResource {
@@ -77,6 +76,13 @@ public class ReportResource {
         }
         return reportEngine;
     }
+    
+
+    void shutdown(){
+        reportEngine.destroy();
+        Platform.shutdown();
+        RegistryProviderFactory.releaseDefault();  // bugzilla 351052
+    }
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -87,7 +93,7 @@ public class ReportResource {
 
         ReportParametersInspector inspector = new ReportParametersInspector(getReportEngine());
         IReportRunnable reportRunnable = getReportDesign(report_file);
-        return inspector.inspectParameters(reportRunnable);
+        return inspector.enumParameters(reportRunnable);
     }
     
     
@@ -100,21 +106,14 @@ public class ReportResource {
         String htmlType = args.getString("htmlType", null);
         String encoding = args.getString("encoding", "UTF-8");
         String locale = args.getString("locale", "en");
-
-        JsonObject arguments = args.getJsonObject("arguments");
-        Map<String, ParameterAttribute> inputValues = new HashMap<String, ParameterAttribute>();
-        for (Entry<String, JsonValue> entry : arguments.entrySet()) {
-            Object paramVal = getJsonValue(entry.getValue());
-            ParameterAttribute val = new ParameterAttribute(paramVal, entry.getValue().toString());
-            inputValues.put(entry.getKey(), val);
-        }
-
+        JsonObject values = args.getJsonObject("values");
+        
         IReportRunnable reportRunnable = getReportDesign(report_file);
         ReportGenerator generator = new ReportGenerator(getReportEngine(), encoding, locale);
 
         try {
             String path = buildTargetFilePath(UUID.randomUUID().toString(), format).getPath();
-            generator.run(reportRunnable, format, htmlType, path, inputValues);
+            generator.run(reportRunnable, format, htmlType, path, values);
             return buildFileResponseOk(report_file, path, format);
         } catch (NamingException e) {
             logger.log(Level.SEVERE, e.getMessage(), e);
@@ -142,48 +141,6 @@ public class ReportResource {
         return null;
     }
 
-
-    Object getJsonValue(JsonValue val) {
-        Object paramVal = null;
-        switch (val.getValueType()) {
-        case ARRAY:
-            JsonArray arr = (JsonArray) val;
-            List<Object> list = new ArrayList<Object>(arr.size());
-            Iterator<JsonValue> it = arr.iterator();
-            while (it.hasNext()) {
-                Object v = getJsonValue(it.next());
-                list.add(v);
-            }
-            paramVal = list.toArray();
-            break;
-        case FALSE:
-            paramVal = false;
-            break;
-        case NUMBER:
-            JsonNumber num = (JsonNumber) val;
-            if (num.isIntegral()) {
-                paramVal = num.intValue();
-            } else {
-                paramVal = num.doubleValue();
-            }
-            break;
-        case OBJECT:
-            JsonObject obj = (JsonObject) val;
-            paramVal = obj;
-            break;
-        case STRING:
-            JsonString str = (JsonString) val;
-            paramVal = str.getString();
-            break;
-        case TRUE:
-            paramVal = true;
-            break;
-        default:
-            break;
-        }
-        return paramVal;
-    }
-
     File buildTargetFilePath(String targetFile, String format) throws NamingException {
         InitialContext ctx = new InitialContext();
         String targetDir = (String) ctx.lookup("java:comp/env/birt/output");
@@ -191,7 +148,6 @@ public class ReportResource {
         File file = Paths.get(targetDir, targetFile).normalize().toFile();
         return file;
     }
-
 
     Response buildFileResponseOk(String report_file, final String path, final String format) {
         StreamingOutput stream = new StreamingOutput() {

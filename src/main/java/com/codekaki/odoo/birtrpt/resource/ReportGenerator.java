@@ -1,12 +1,28 @@
 package com.codekaki.odoo.birtrpt.resource;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.json.JsonNumber;
+import javax.json.JsonObject;
+import javax.json.JsonString;
+import javax.json.JsonValue;
 
 import org.eclipse.birt.core.script.ParameterAttribute;
 import org.eclipse.birt.report.engine.api.EngineException;
 import org.eclipse.birt.report.engine.api.HTMLRenderOption;
+import org.eclipse.birt.report.engine.api.IParameterDefn;
 import org.eclipse.birt.report.engine.api.IRenderOption;
 import org.eclipse.birt.report.engine.api.IReportEngine;
 import org.eclipse.birt.report.engine.api.IReportRunnable;
@@ -20,6 +36,7 @@ public class ReportGenerator {
     IReportEngine reportEngine;
     String encoding;
     String locale;
+    Map<String, Class<?>> paramsType;
 
     public ReportGenerator(IReportEngine reportEngine, String encoding, String locale) {
         this.reportEngine = reportEngine;
@@ -27,19 +44,40 @@ public class ReportGenerator {
         this.locale = locale;
     }
 
-    void run(IReportRunnable reportRunnable, String format, String htmlType, String targetFile, Map<String, ParameterAttribute> inputValues) throws EngineException {
+    private Class<?> lookupParamType(String fieldType) {
+        if(paramsType == null){
+            paramsType = new HashMap<String, Class<?>>();
+            paramsType.put("boolean", Boolean.class); 
+            paramsType.put("integer", Integer.class); 
+            paramsType.put("float", Float.class);
+            paramsType.put("decimal", BigDecimal.class); 
+            paramsType.put("datetime", Timestamp.class); 
+            paramsType.put("date", Date.class);
+            paramsType.put("time", Time.class); 
+        }
+        Class<?> type = paramsType.get(fieldType);
+        if(type == null){
+            return String.class;
+        }
+        return type;
+    }
+
+    void run(IReportRunnable reportRunnable, String format, String htmlType, String targetFile, JsonObject values)
+            throws EngineException {
+        
+        ReportParametersInspector inspector = new ReportParametersInspector(reportEngine);
+        List<IParameterDefn> parameters = inspector.getParameters(reportRunnable);
+        
+        Map<String, String> map = new HashMap<String, String>(parameters.size());
+        for(IParameterDefn param : parameters){
+            map.put(param.getName(), inspector.lookupFieldType(param.getDataType()));
+        }
+        
         IRunAndRenderTask task = reportEngine.createRunAndRenderTask(reportRunnable);
-        for (Map.Entry<String, ParameterAttribute> entry : inputValues.entrySet()) {
-            String paraName = entry.getKey();
-            ParameterAttribute pa = entry.getValue();
-            Object valueObject = pa.getValue();
-            if (valueObject instanceof Object[]) {
-                Object[] valueArray = (Object[]) valueObject;
-                String[] displayTextArray = (String[]) pa.getDisplayText();
-                task.setParameter(paraName, valueArray, displayTextArray);
-            } else {
-                task.setParameter(paraName, pa.getValue(), (String) pa.getDisplayText());
-            }
+        Map<String, ParameterAttribute> inputValues = new HashMap<String, ParameterAttribute>();
+        for (Entry<String, JsonValue> entry : values.entrySet()) {
+            String name = entry.getKey();
+            setParameter(task, name, map.get(name), entry.getValue());
         }
 
         // set report render options
@@ -53,7 +91,7 @@ public class ReportGenerator {
         // setup the application context
         if (format.equalsIgnoreCase("html")) {
             HTMLRenderOption htmlOptions = new HTMLRenderOption(options);
-            if ("ReportletNoCSS".equals(htmlType)){
+            if ("ReportletNoCSS".equals(htmlType)) {
                 htmlOptions.setEmbeddable(true);
             }
             // setup the output encoding
@@ -69,6 +107,44 @@ public class ReportGenerator {
         task.setLocale(getLocale(locale));
 
         task.run();
+    }
+
+    private void setParameter(IRunAndRenderTask task, String name, String fieldType, JsonValue val) {
+        Class<?> clz = lookupParamType(fieldType);
+        Object value = null;
+        switch(val.getValueType()){
+        case FALSE:
+            value = false;
+            break;
+        case TRUE:
+            value = true;
+            break;
+        case NULL:
+            value = null;
+            break;
+        case NUMBER:
+            JsonNumber number = (JsonNumber) val;
+            if(number.isIntegral()){
+                value = number.intValue();
+            }
+            else{
+                value = number.doubleValue();
+            }
+            break;
+        default:
+            JsonString string = (JsonString) val;
+            value = string.getString();
+            if(!fieldType.equals("char")){
+                try {
+                    Method mValueOf = clz.getMethod("valueOf", String.class);
+                    value = mValueOf.invoke(clz, value);
+                } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+                    logger.log(Level.SEVERE, e.getMessage(), e);
+                }
+            }
+            break;
+        }
+        task.setParameter(name, value, String.valueOf(value));
     }
 
     private Locale getLocale(String locale) {

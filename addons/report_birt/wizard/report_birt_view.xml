@@ -7,7 +7,7 @@
             <field name="arch" type="xml">
                 <form string="Birt Report Wizard" version="7.0">
                     <group>
-                        <group name="parameters"/>
+                        <group name="values"/>
                         <group/>
                     </group>
                     <footer>

@@ -4,9 +4,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
@@ -17,8 +21,6 @@ import javax.json.JsonArray;
 import javax.json.JsonArrayBuilder;
 import javax.json.JsonObjectBuilder;
 
-import org.eclipse.birt.core.framework.Platform;
-import org.eclipse.birt.report.engine.api.EngineException;
 import org.eclipse.birt.report.engine.api.IGetParameterDefinitionTask;
 import org.eclipse.birt.report.engine.api.IParameterDefn;
 import org.eclipse.birt.report.engine.api.IParameterDefnBase;
@@ -28,60 +30,60 @@ import org.eclipse.birt.report.engine.api.IReportEngine;
 import org.eclipse.birt.report.engine.api.IReportRunnable;
 import org.eclipse.birt.report.engine.api.IScalarParameterDefn;
 import org.eclipse.birt.report.engine.api.ReportRunner;
-import org.eclipse.core.internal.registry.RegistryProviderFactory;
 
 /**
  * @author phuihock
  * @see http://eclipse.org/birt/documentation/integrating/reapi.php
  */
 public class ReportParametersInspector {
+    private static final DateFormat DEFAULT_SERVER_DATETIME = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+    private static final DateFormat DEFAULT_SERVER_DATE = new SimpleDateFormat("yyyy-MM-dd");
+    
+    private static final DateFormat DEFAULT_SERVER_TIME = new SimpleDateFormat("HH:mm:ss");
+    
     static protected Logger logger = Logger.getLogger( ReportRunner.class .getName( ));
     
     IReportEngine reportEngine = null;
-    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-    DateFormat timestampFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
     
     public ReportParametersInspector(IReportEngine reportEngine) {
         this.reportEngine = reportEngine;
     }
-    
-    IReportRunnable openReportDesign(String report_file) throws EngineException{
-        return reportEngine.openReportDesign(report_file);
-    }
-    
-    void shutdown(){
-        reportEngine.destroy();
-        Platform.shutdown();
-        RegistryProviderFactory.releaseDefault();  // bugzilla 351052
-    }
-    
-    JsonArray inspectParameters(IReportRunnable reportRunnable){
+
+    List<IParameterDefn> getParameters(IReportRunnable reportRunnable){
         IGetParameterDefinitionTask paramDefTask = reportEngine.createGetParameterDefinitionTask(reportRunnable);
-        Collection<IParameterDefnBase> coll = paramDefTask.getParameterDefns(true);
-        java.util.Iterator<IParameterDefnBase> it = coll.iterator();
-        JsonArrayBuilder parametersBuilder = Json.createArrayBuilder();
-        
+        Collection<IParameterDefn> coll = paramDefTask.getParameterDefns(true);
+        java.util.Iterator<IParameterDefn> it = coll.iterator();
+        List<IParameterDefn> parameters = new ArrayList<IParameterDefn>();
         while(it.hasNext()){
-            JsonObjectBuilder paramObjBuilder = Json.createObjectBuilder();
-            IParameterDefnBase paramDefBase = it.next();
-            if(paramDefBase instanceof IParameterGroupDefn){
-                IParameterGroupDefn paramGroupDef = (IParameterGroupDefn) paramDefBase;
+            IParameterDefn paramDef = it.next();
+            if(paramDef instanceof IParameterGroupDefn){
+                IParameterGroupDefn paramGroupDef = (IParameterGroupDefn) paramDef;
                 List<IParameterDefn> params = paramGroupDef.getContents();
                 Iterator<IParameterDefn> paramsIt = params.iterator();
                 while(paramsIt.hasNext()){
-                    inspectParameter(paramDefTask, paramsIt.next(), paramObjBuilder);
+                    parameters.add(paramsIt.next());
                 } 
             }
             else{
-                inspectParameter(paramDefTask, paramDefBase, paramObjBuilder);
+                parameters.add(paramDef);
             }
+        }
+        return parameters;
+    }
+    
+    JsonArray enumParameters(IReportRunnable reportRunnable){
+        IGetParameterDefinitionTask paramDefTask = reportEngine.createGetParameterDefinitionTask(reportRunnable);
+        JsonArrayBuilder parametersBuilder = Json.createArrayBuilder();
+        for(IParameterDefnBase param : getParameters(reportRunnable)){
+            JsonObjectBuilder paramObjBuilder = Json.createObjectBuilder();
+            enumParameter(paramDefTask, param, paramObjBuilder);
             parametersBuilder.add(paramObjBuilder);
         }
-        
         return parametersBuilder.build();
     }
     
-    private String lookupFieldType(IParameterDefn param){
+    String lookupFieldType(int dataType){
         /*
         _type = 'unknown'
         _type = 'boolean'
@@ -92,7 +94,7 @@ public class ReportParametersInspector {
         _type = 'date'
         _type = 'datetime'
          */
-        switch(param.getDataType()){
+        switch(dataType){
         case IParameterDefn.TYPE_BOOLEAN:
             return "boolean";
         case IParameterDefn.TYPE_INTEGER:
@@ -112,9 +114,15 @@ public class ReportParametersInspector {
             return "char";
         }
     }
-    
-    private Class<?> lookupJsonMethodValueArgClass(Object v){
-        Class<?>[][] classes = {
+        
+    /**
+     * Given value v, this method lookups the matching javax.json (JSR-353 JSONP) class. 
+     * @param param report parameter
+     * @param v value
+     * @return the class the value v mapped to
+     */
+    private Class<?> lookupJsonMethodValueArgClass(IParameterDefnBase param, Object v){
+        Class[][] mappings = {
                 {BigDecimal.class, BigDecimal.class},
                 {BigInteger.class, BigInteger.class}, 
                 {Boolean.class, boolean.class}, 
@@ -124,25 +132,39 @@ public class ReportParametersInspector {
                 {String.class, String.class}
         };
         
-        Class<?> clz = Object.class;
-        for(Class<?>[] map : classes){
+        for(Class<?>[] map : mappings){
             if(v.getClass() == map[0]){
                 return map[1];
             }
         }
-        
-        return null;
+                
+        return String.class;
     }
     
     private void setDefaultValue(JsonObjectBuilder jsonObjectBuilder, IParameterDefn param, Object defaultValue){
         if(defaultValue != null){
-            Class<?> clz = lookupJsonMethodValueArgClass(defaultValue);
+            Class<?> clz = lookupJsonMethodValueArgClass(param, defaultValue);
             if(clz != null){
                 try{
                     Method method = JsonObjectBuilder.class.getMethod("add", String.class, clz);
+                    if(clz == String.class){
+                        // There is no date/time datatype for json object. They are represented as normal string.
+                        switch(param.getDataType()){
+                        case IParameterDefn.TYPE_DATE_TIME:
+                            defaultValue = DEFAULT_SERVER_DATETIME.format(defaultValue);
+                            break;
+                        case IParameterDefn.TYPE_DATE:
+                            defaultValue = DEFAULT_SERVER_DATE.format(defaultValue);
+                            break;
+                        case IParameterDefn.TYPE_TIME:
+                            defaultValue = DEFAULT_SERVER_TIME.format(defaultValue);
+                            break;
+                        }
+                    }
+                    
                     method.invoke(jsonObjectBuilder, "defaultValue", defaultValue);
                 } catch(NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e){
-                    e.printStackTrace();
+                    logger.log(Level.SEVERE, e.getMessage(), e);
                 }
             }
             else{
@@ -154,12 +176,12 @@ public class ReportParametersInspector {
         }
     }
     
-    private void push(JsonArrayBuilder jsonArrayBuilder, Object obj){
+    private void push(JsonArrayBuilder jsonArrayBuilder, IParameterDefnBase param, Object obj){
         if(obj == null){
             jsonArrayBuilder.addNull();
         }
         else{
-            Class<?> clz = lookupJsonMethodValueArgClass(obj);
+            Class<?> clz = lookupJsonMethodValueArgClass(param, obj);
             if(clz != null){
                 try{
                     Method method = JsonArrayBuilder.class.getMethod("add", clz);
@@ -174,11 +196,10 @@ public class ReportParametersInspector {
         }
     }
     
-    private void inspectParameter(IGetParameterDefinitionTask paramDefTask, IParameterDefnBase paramDefBase, JsonObjectBuilder paramObjBuilder) {
+    private void enumParameter(IGetParameterDefinitionTask paramDefTask, IParameterDefnBase paramDefBase, JsonObjectBuilder paramObjBuilder) {
         String name = paramDefBase.getName();
         String promptText = paramDefBase.getPromptText();
         String type = "";
-        String controlType = "text box";
         String fieldType = "";
         Boolean isRequired = true;;
         String helpText = paramDefBase.getHelpText();
@@ -191,26 +212,9 @@ public class ReportParametersInspector {
             
             IScalarParameterDefn param = (IScalarParameterDefn) paramDefBase;
             defaultValue = paramDefTask.getDefaultValue(param);
-            fieldType = lookupFieldType(param); 
+            fieldType = lookupFieldType(param.getDataType()); 
             setDefaultValue(paramObjBuilder, param, defaultValue);
             
-            switch(param.getControlType()){
-            case IScalarParameterDefn.LIST_BOX:
-                controlType = "list box";
-                break;
-            case IScalarParameterDefn.CHECK_BOX:
-                controlType = "check box";
-                break;
-            case IScalarParameterDefn.TEXT_BOX:
-                controlType = "text box";
-                break;
-            case IScalarParameterDefn.RADIO_BUTTON:
-                controlType = "radio button";
-                break;
-            default:
-                controlType = "text box";
-                break;
-            }
             isRequired = param.isRequired();
         case IParameterDefn.LIST_PARAMETER:
             type = "list";
@@ -224,7 +228,7 @@ public class ReportParametersInspector {
         
         paramObjBuilder.add("name", name);
         paramObjBuilder.add("promptText", promptText != null? promptText : name);
-        paramObjBuilder.add("type", type);
+        paramObjBuilder.add("fieldType", fieldType);
         paramObjBuilder.add("required", isRequired);
         paramObjBuilder.add("helpText", helpText != null? helpText : "");
         
@@ -233,15 +237,13 @@ public class ReportParametersInspector {
             JsonArrayBuilder selectionListBuilder = Json.createArrayBuilder();
             JsonArrayBuilder choiceBuilder = Json.createArrayBuilder();
             for(IParameterSelectionChoice choice : selectionList){
-                push(choiceBuilder, choice.getValue());
-                push(choiceBuilder, choice.getLabel());
+                push(choiceBuilder, paramDefBase, choice.getValue());
+                push(choiceBuilder, paramDefBase, choice.getLabel());
                 logger.log(Level.FINE, "\t" + choice.getValue() + ": " + choice.getLabel());
                 selectionListBuilder.add(choiceBuilder);
             }
             paramObjBuilder.add("selection", selectionListBuilder);
         }
-        paramObjBuilder.add("controlType", controlType);
-        paramObjBuilder.add("fieldType", fieldType);
-        logger.log(Level.FINE, name + ", " + type + "<" + fieldType + ">, "  + controlType + ",  [" + defaultValue + "]");
+        logger.log(Level.FINE, name + ", " + type + "<" + fieldType + ">, [" + defaultValue + "]");
     }
 }
