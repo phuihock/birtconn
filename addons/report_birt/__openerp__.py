@@ -13,6 +13,9 @@ This module allows users to generate reports designed in Eclipse Birt
     'website': 'http://codekaki.com',
     'summary': 'Birt, Report',
     'depends': [],
+    'demo': [
+        'wizard/report_birt_demo.xml',
+    ],
     'data': [
         'wizard/report_birt_view.xml',
         'wizard/report_birt_data.xml',
