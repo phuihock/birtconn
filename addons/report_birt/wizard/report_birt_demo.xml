@@ -25,6 +25,7 @@
                 action="action_birt_test_parameters_rpt"
                 id="menu_birt_test_parameters_rpt"
                 sequence="200"
+                groups="base.group_no_one"
                 icon="STOCK_PRINT"/>
         </data>
 </openerp>
