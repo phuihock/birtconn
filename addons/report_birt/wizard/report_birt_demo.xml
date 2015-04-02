@@ -1,31 +1,31 @@
 <openerp>
-        <data>
-            <report id="report_birt.report_test"
-                    string="Test Report"
-                    model="report_birt.report_wizard"
-                    name="birt.test"
-                    file="test.rptdesign"
-                    report_type="pdf"
-                    header="False"/>
+    <data>
+        <report id="report_birt.report_test"
+                string="Test Report"
+                model="report_birt.report_wizard"
+                name="birt.test"
+                file="test.rptdesign"
+                report_type="pdf"
+                header="False"/>
 
-            <record id="action_birt_test_parameters_rpt" model="ir.actions.act_window">
-                <field name="name">Parameters</field>
-                <field name="res_model">report_birt.report_wizard</field>
-                <field name="view_type">form</field>
-                <field name="view_mode">form</field>
-                <field name="context">{'report_name': 'birt.test'}</field>
-                <field name="target">new</field>
-            </record>
+        <record id="action_birt_test_parameters_rpt" model="ir.actions.act_window">
+            <field name="name">Parameters</field>
+            <field name="res_model">report_birt.report_wizard</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="context">{'report_name': 'birt.test'}</field>
+            <field name="target">new</field>
+        </record>
 
-            <menuitem id="menu_birt_root" parent="base.menu_reporting" name="BIRT Tools"/>
-            <menuitem id="menu_birt" name="Reports" parent="menu_birt_root"/>
-            <menuitem
-                name="Parameters"
-                parent="menu_birt_root"
-                action="action_birt_test_parameters_rpt"
-                id="menu_birt_test_parameters_rpt"
-                sequence="200"
-                groups="base.group_no_one"
-                icon="STOCK_PRINT"/>
-        </data>
+        <menuitem id="menu_birt_root" parent="base.menu_reporting" name="BIRT Tools"/>
+        <menuitem id="menu_birt" name="Reports" parent="menu_birt_root"/>
+        <menuitem
+            name="Parameters"
+            parent="menu_birt_root"
+            action="action_birt_test_parameters_rpt"
+            id="menu_birt_test_parameters_rpt"
+            sequence="200"
+            groups="base.group_no_one"
+            icon="STOCK_PRINT"/>
+    </data>
 </openerp>
