@@ -6,10 +6,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -35,10 +31,6 @@ import org.eclipse.birt.core.exception.BirtException;
 import org.eclipse.birt.core.framework.Platform;
 import org.eclipse.birt.report.engine.api.EngineConfig;
 import org.eclipse.birt.report.engine.api.EngineException;
-import org.eclipse.birt.report.engine.api.IGetParameterDefinitionTask;
-import org.eclipse.birt.report.engine.api.IParameterDefn;
-import org.eclipse.birt.report.engine.api.IParameterDefnBase;
-import org.eclipse.birt.report.engine.api.IParameterGroupDefn;
 import org.eclipse.birt.report.engine.api.IReportEngine;
 import org.eclipse.birt.report.engine.api.IReportEngineFactory;
 import org.eclipse.birt.report.engine.api.IReportRunnable;
@@ -60,6 +52,8 @@ public class ReportResource {
                 Context ctx = new InitialContext();
                 String birtHome = (String) ctx.lookup("java:comp/env/birt/home");
                 config.setBIRTHome(birtHome);
+                config.setResourcePath(Paths.get(birtHome, "resources").toFile().getPath());
+                logger.log(Level.INFO, "Resource path: " + config.getResourcePath());
             } catch (NamingException e) {
                 logger.log(Level.SEVERE, e.getMessage(), e);
             }

@@ -4,13 +4,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
@@ -52,6 +49,8 @@ public class ReportParametersInspector {
 
     List<IParameterDefn> getParameters(IReportRunnable reportRunnable){
         IGetParameterDefinitionTask paramDefTask = reportEngine.createGetParameterDefinitionTask(reportRunnable);
+        
+        @SuppressWarnings("unchecked")
         Collection<IParameterDefn> coll = paramDefTask.getParameterDefns(true);
         java.util.Iterator<IParameterDefn> it = coll.iterator();
         List<IParameterDefn> parameters = new ArrayList<IParameterDefn>();
@@ -59,6 +58,8 @@ public class ReportParametersInspector {
             IParameterDefn paramDef = it.next();
             if(paramDef instanceof IParameterGroupDefn){
                 IParameterGroupDefn paramGroupDef = (IParameterGroupDefn) paramDef;
+                
+                @SuppressWarnings("unchecked")
                 List<IParameterDefn> params = paramGroupDef.getContents();
                 Iterator<IParameterDefn> paramsIt = params.iterator();
                 while(paramsIt.hasNext()){
@@ -122,6 +123,7 @@ public class ReportParametersInspector {
      * @return the class the value v mapped to
      */
     private Class<?> lookupJsonMethodValueArgClass(IParameterDefnBase param, Object v){
+        @SuppressWarnings("rawtypes")
         Class[][] mappings = {
                 {BigDecimal.class, BigDecimal.class},
                 {BigInteger.class, BigInteger.class}, 

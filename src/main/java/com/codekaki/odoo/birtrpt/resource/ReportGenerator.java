@@ -19,7 +19,6 @@ import javax.json.JsonObject;
 import javax.json.JsonString;
 import javax.json.JsonValue;
 
-import org.eclipse.birt.core.script.ParameterAttribute;
 import org.eclipse.birt.report.engine.api.EngineException;
 import org.eclipse.birt.report.engine.api.HTMLRenderOption;
 import org.eclipse.birt.report.engine.api.IParameterDefn;
@@ -74,7 +73,6 @@ public class ReportGenerator {
         }
         
         IRunAndRenderTask task = reportEngine.createRunAndRenderTask(reportRunnable);
-        Map<String, ParameterAttribute> inputValues = new HashMap<String, ParameterAttribute>();
         for (Entry<String, JsonValue> entry : values.entrySet()) {
             String name = entry.getKey();
             setParameter(task, name, map.get(name), entry.getValue());
