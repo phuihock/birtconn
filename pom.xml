@@ -29,7 +29,7 @@
         <dependency>
             <groupId>org.eclipse.birt.runtime</groupId>
             <artifactId>org.eclipse.birt.runtime</artifactId>
-            <version>4.4.1</version>
+            <version>4.4.2</version>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
