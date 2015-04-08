@@ -5,7 +5,7 @@
     <New class="org.eclipse.jetty.plus.jndi.Resource">
         <Arg>jdbc/${db.name}</Arg>
         <Arg>
-            <New class="org.postgresql.ds.PGConnectionPoolDataSource">
+            <New class="org.postgresql.ds.PGSimpleDataSource">
                 <Set name="User">${db.user}</Set>
                 <Set name="Password">${db.pass}</Set>
                 <Set name="DatabaseName">${db.name}</Set>
