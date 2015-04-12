@@ -53,10 +53,13 @@ openerp.report_birt = function(instance) {
 
     instance.report_birt.TimeColumn = instance.web.list.Column.extend({
         _format: function(row_data, options){
-            return _.escape(instance.web.format_value(
-                instance.web.format_value(row_data[this.id].value, {'widget': 'time'}),
+            var value = row_data[this.id].value;
+            if(/^\d{2}:\d{2}$/.test(value)) value += ":00";
+
+            return _.escape(
+                instance.web.format_value(value, {'widget': 'time'}),
                 this,
-                options.value_if_empty));
+                options.value_if_empty);
         }
     });
     instance.web.list.columns.add('field.time', 'instance.report_birt.TimeColumn');
