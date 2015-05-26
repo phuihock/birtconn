@@ -56,7 +56,11 @@ class report_birt_report_wizard(osv.osv_memory):
                     # is a type of parameter that is directly supported by birt reporting.
                     # we treat time as datetime field, but set to use timepicker widget instead.
                     fieldType = 'datetime'
-                val = getattr(fields, fieldType)(string=param['promptText'])._symbol_set[1](param['defaultValue'])
+
+                if fieldType in ['boolean']:
+                    val = param['defaultValue']
+                else:
+                    val = getattr(fields, fieldType)(string=param['promptText'])._symbol_set[1](param['defaultValue'])
                 res[name] = val
         return res
 
