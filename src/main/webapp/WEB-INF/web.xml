@@ -5,10 +5,16 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
     <env-entry>
-        <env-entry-name>reports</env-entry-name>
+        <env-entry-name>birt/resources</env-entry-name>
+    </env-entry>
+    <env-entry>
+        <env-entry-name>birt/reports</env-entry-name>
+    </env-entry>
+    <env-entry>
+        <env-entry-name>birt/output</env-entry-name>
     </env-entry>
     <resource-ref>
-        <res-ref-name>jdbc/openerp</res-ref-name>
+        <res-ref-name>jdbc/${db.name}</res-ref-name>
     </resource-ref>
     <servlet>
         <servlet-name>Jersey Web Application</servlet-name>
