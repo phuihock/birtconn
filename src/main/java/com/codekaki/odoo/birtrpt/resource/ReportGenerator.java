@@ -21,13 +21,18 @@ import javax.json.JsonValue;
 
 import org.eclipse.birt.report.engine.api.EngineException;
 import org.eclipse.birt.report.engine.api.HTMLRenderOption;
+import org.eclipse.birt.report.engine.api.ICascadingParameterGroup;
 import org.eclipse.birt.report.engine.api.IParameterDefn;
+import org.eclipse.birt.report.engine.api.IParameterDefnBase;
+import org.eclipse.birt.report.engine.api.IParameterGroupDefn;
 import org.eclipse.birt.report.engine.api.IRenderOption;
 import org.eclipse.birt.report.engine.api.IReportEngine;
 import org.eclipse.birt.report.engine.api.IReportRunnable;
 import org.eclipse.birt.report.engine.api.IRunAndRenderTask;
 import org.eclipse.birt.report.engine.api.RenderOption;
 import org.eclipse.birt.report.engine.api.ReportRunner;
+
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 public class ReportGenerator {
     static protected Logger logger = Logger.getLogger(ReportRunner.class.getName());
@@ -65,12 +70,10 @@ public class ReportGenerator {
             throws EngineException {
         
         ReportParametersInspector inspector = new ReportParametersInspector(reportEngine);
-        List<IParameterDefn> parameters = inspector.getParameters(reportRunnable);
+        List<IParameterDefnBase> parameters = inspector.getParameters(reportRunnable);
         
         Map<String, String> map = new HashMap<String, String>(parameters.size());
-        for(IParameterDefn param : parameters){
-            map.put(param.getName(), inspector.lookupFieldType(param.getDataType()));
-        }
+        flattenParameters(inspector, parameters, map);
         
         IRunAndRenderTask task = reportEngine.createRunAndRenderTask(reportRunnable);
         for (Entry<String, JsonValue> entry : values.entrySet()) {
@@ -105,6 +108,23 @@ public class ReportGenerator {
         task.setLocale(getLocale(locale));
 
         task.run();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void flattenParameters(ReportParametersInspector inspector, List<IParameterDefnBase> parameters, Map<String, String> map) {
+        for(IParameterDefnBase param : parameters){
+            if(param instanceof IParameterGroupDefn){
+                IParameterGroupDefn p = (IParameterGroupDefn) param;
+                if(p instanceof ICascadingParameterGroup){
+                    throw new NotImplementedException();
+                }
+                flattenParameters(inspector, p.getContents(), map);
+            }
+            else{
+                IParameterDefn p = (IParameterDefn) param;
+                map.put(param.getName(), inspector.lookupFieldType(p.getDataType()));
+            }
+        }
     }
 
     private void setParameter(IRunAndRenderTask task, String name, String fieldType, JsonValue val) {

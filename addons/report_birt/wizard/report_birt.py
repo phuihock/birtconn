@@ -1,16 +1,14 @@
 # -*- encoding: utf-8 -*-
 
-from openerp.osv import fields, osv
-from lxml import etree
-from openerp.report.interface import report_int
-from openerp import netsvc, tools
-from copy import copy
+from collections import OrderedDict
 from datetime import datetime, date, time
-import openerp.pooler as pooler
+from lxml import etree
+from openerp import netsvc, tools
+from openerp.osv import fields, osv
+from openerp.report.interface import report_int
+import os
 import requests
 import simplejson as json
-import subprocess
-import os
 
 
 def serialize(obj):
@@ -51,29 +49,26 @@ class report_birt_report_wizard(osv.osv_memory):
         parameters = self._report_get(cr, uid, context)
         for param in parameters:
             name = param['name']
-            fieldType = param['fieldType']
-            if fieldType == 'time':
-                # time is actually not a field, and is not supported by OpenERP by default.
-                # is a type of parameter that is directly supported by birt reporting.
-                # we treat time as datetime field, but set to use timepicker widget instead.
-                fieldType = 'datetime'
-            val = getattr(fields, fieldType)(string=param['promptText'])._symbol_set[1](param['defaultValue'])
-            res[name] = val
+            if param['type'] == 'scalar':
+                fieldType = param['fieldType']
+                if fieldType == 'time':
+                    # time is actually not a field, and is not supported by OpenERP by default.
+                    # is a type of parameter that is directly supported by birt reporting.
+                    # we treat time as datetime field, but set to use timepicker widget instead.
+                    fieldType = 'datetime'
+                val = getattr(fields, fieldType)(string=param['promptText'])._symbol_set[1](param['defaultValue'])
+                res[name] = val
         return res
 
-    def fields_get(self, cr, uid, fields_list=None, context=None, write_access=True):
-        context = context or {}
 
-        res = super(report_birt_report_wizard, self).fields_get(cr, uid, fields_list, context, write_access)
-        for f in self._columns:
-            for attr in ['invisible', 'readonly']:
-                res[f][attr] = True
+    def fields_get_meta(self, cr, uid, param, context, res, fgroup=None):
+        name = param['name']
+        meta = {}
+        if param['type'] == 'group':
+            for p in param['parameters']:
+                self.fields_get_meta(cr, uid, p, context, res, {'name': param['name'], 'string': param['promptText']})
 
-        parameters = self._report_get(cr, uid, context)
-        for param in parameters:
-            name = param['name']
-            meta = {}
-
+        if param['type'] == 'scalar':
             # refer to field_to_dict if you don't understand why
             if 'selection' in param and param['selection']:
                 # NOTE: key must be a string, or else the dropdown box will not
@@ -91,7 +86,44 @@ class report_birt_report_wizard(osv.osv_memory):
             meta['help'] = param['helpText']
             meta['context'] = {'type': param['fieldType']}  # actual data type
 
+            if fgroup:
+                meta['context']['fgroup'] = fgroup
             res[name] = meta
+
+
+    def fields_get(self, cr, uid, fields_list=None, context=None, write_access=True):
+        context = context or {}
+
+        res = super(report_birt_report_wizard, self).fields_get(cr, uid, fields_list, context, write_access)
+        for f in self._columns:
+            for attr in ['invisible', 'readonly']:
+                res[f][attr] = True
+
+        parameters = self._report_get(cr, uid, context)
+        for param in parameters:
+            self.fields_get_meta(cr, uid, param, context, res)
+
+        def order_by(parameters):
+            def _wrap(name):
+                for i, param in enumerate(parameters):
+                    if param['type'] == 'group':
+                        j = order_by(param['parameters'])(name)
+                        if j != -1:
+                            return (i * 10) + j
+                    elif param['type'] == 'scalar' and param['name'] == name:
+                            return (i * 10)
+                return -1
+            return _wrap
+
+        if parameters:
+            res_cur = res
+            res_new = OrderedDict()
+
+            # What we are trying to achieve here is to order fields by the order they (parameters) are defined in the rptdesign. Because
+            # a parameter may be a group parameter, we will also inspect the group by loop check its content.
+            for k in sorted(res, cmp, key=order_by(parameters)):
+                res_new[k] = res_cur[k]
+            res = res_new
 
         # if no fields is specified, return all
         if not fields_list:
@@ -99,6 +131,7 @@ class report_birt_report_wizard(osv.osv_memory):
         else:
             # return only what is requested
             return dict(filter(lambda (k, v): k in fields_list, a.items()))
+
 
     def create(self, cr, uid, vals, context=None):
         # 'vals' contains all field/value pairs, including report_name, parameters and values.
@@ -161,10 +194,19 @@ class report_birt_report_wizard(osv.osv_memory):
             return res
 
         xarch = etree.XML(res['arch'])
-        values_grp = xarch.xpath('//group[@name="values"]')[0]
+        group_values = xarch.xpath('//group[@name="values"]')[0]
 
         for field, descriptor in self.fields_get(cr, uid, context=context).iteritems():
-            el = etree.SubElement(values_grp, 'field', name=field)
+            if 'context' in descriptor and 'fgroup' in descriptor['context']:
+                fgroup = descriptor['context']['fgroup']
+                elg = xarch.xpath('//group[@name="%(name)s"][@string="%(string)s"]' % fgroup)
+                if elg:
+                    _g = elg[0]
+                else:
+                    _g = etree.SubElement(group_values, 'group', name=fgroup['name'], string=fgroup['string'], colspan="2")
+                el = etree.SubElement(_g, 'field', name=field)
+            else:
+                el = etree.SubElement(group_values, 'field', name=field)
             if field == 'time':
                 # use our custom timepicker widget
                 el.set('widget', 'timepicker')
@@ -197,6 +239,7 @@ class report_birt(report_int):
 
         r = requests.post(report_api, data=json.dumps(data, default=serialize), headers=headers)
         return (r.content, self.report_type)
+
 
 class registry(osv.osv):
     _inherit = 'ir.actions.report.xml'

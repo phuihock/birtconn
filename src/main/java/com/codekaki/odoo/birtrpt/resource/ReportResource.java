@@ -50,9 +50,8 @@ public class ReportResource {
             EngineConfig config = new EngineConfig();
             try {
                 Context ctx = new InitialContext();
-                String birtHome = (String) ctx.lookup("java:comp/env/birt/home");
-                config.setBIRTHome(birtHome);
-                config.setResourcePath(Paths.get(birtHome, "resources").toFile().getPath());
+                String resourcePath = (String) ctx.lookup("java:comp/env/birt/resources");
+                config.setResourcePath(resourcePath);
                 logger.log(Level.INFO, "Resource path: " + config.getResourcePath());
             } catch (NamingException e) {
                 logger.log(Level.SEVERE, e.getMessage(), e);

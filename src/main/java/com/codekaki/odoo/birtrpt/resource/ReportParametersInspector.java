@@ -18,6 +18,7 @@ import javax.json.JsonArray;
 import javax.json.JsonArrayBuilder;
 import javax.json.JsonObjectBuilder;
 
+import org.eclipse.birt.report.engine.api.ICascadingParameterGroup;
 import org.eclipse.birt.report.engine.api.IGetParameterDefinitionTask;
 import org.eclipse.birt.report.engine.api.IParameterDefn;
 import org.eclipse.birt.report.engine.api.IParameterDefnBase;
@@ -27,6 +28,8 @@ import org.eclipse.birt.report.engine.api.IReportEngine;
 import org.eclipse.birt.report.engine.api.IReportRunnable;
 import org.eclipse.birt.report.engine.api.IScalarParameterDefn;
 import org.eclipse.birt.report.engine.api.ReportRunner;
+
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * @author phuihock
@@ -47,24 +50,21 @@ public class ReportParametersInspector {
         this.reportEngine = reportEngine;
     }
 
-    List<IParameterDefn> getParameters(IReportRunnable reportRunnable){
+    List<IParameterDefnBase> getParameters(IReportRunnable reportRunnable){
         IGetParameterDefinitionTask paramDefTask = reportEngine.createGetParameterDefinitionTask(reportRunnable);
         
         @SuppressWarnings("unchecked")
-        Collection<IParameterDefn> coll = paramDefTask.getParameterDefns(true);
-        java.util.Iterator<IParameterDefn> it = coll.iterator();
-        List<IParameterDefn> parameters = new ArrayList<IParameterDefn>();
+        Collection<IParameterDefnBase> coll = paramDefTask.getParameterDefns(true);
+        java.util.Iterator<IParameterDefnBase> it = coll.iterator();
+        List<IParameterDefnBase> parameters = new ArrayList<IParameterDefnBase>();
         while(it.hasNext()){
-            IParameterDefn paramDef = it.next();
+            IParameterDefnBase paramDef = it.next();
             if(paramDef instanceof IParameterGroupDefn){
                 IParameterGroupDefn paramGroupDef = (IParameterGroupDefn) paramDef;
-                
-                @SuppressWarnings("unchecked")
-                List<IParameterDefn> params = paramGroupDef.getContents();
-                Iterator<IParameterDefn> paramsIt = params.iterator();
-                while(paramsIt.hasNext()){
-                    parameters.add(paramsIt.next());
-                } 
+                if(paramGroupDef instanceof ICascadingParameterGroup){
+                    throw new NotImplementedException();
+                }
+                parameters.add(paramGroupDef);
             }
             else{
                 parameters.add(paramDef);
@@ -198,8 +198,21 @@ public class ReportParametersInspector {
         }
     }
     
+    @SuppressWarnings("unchecked")
+    private void enumParameterGroup(IGetParameterDefinitionTask paramDefTask, IParameterGroupDefn paramGroupDefn, JsonObjectBuilder paramObjBuilder) {
+        JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
+        for(IParameterDefnBase paramDef : (List<IParameterDefnBase>) paramGroupDefn.getContents()){
+            JsonObjectBuilder objectBuilder = Json.createObjectBuilder();
+            enumParameter(paramDefTask, paramDef, objectBuilder);
+            arrayBuilder.add(objectBuilder);
+        }
+        paramObjBuilder.add("parameters", arrayBuilder);
+    }
+
+    @SuppressWarnings("unchecked")
     private void enumParameter(IGetParameterDefinitionTask paramDefTask, IParameterDefnBase paramDefBase, JsonObjectBuilder paramObjBuilder) {
         String name = paramDefBase.getName();
+        String displayName = paramDefBase.getDisplayName();
         String promptText = paramDefBase.getPromptText();
         String type = "";
         String fieldType = "";
@@ -208,44 +221,56 @@ public class ReportParametersInspector {
         Object defaultValue = null;
         Collection<IParameterSelectionChoice> selectionList = null;
 
+        paramObjBuilder.add("name", name);
+        paramObjBuilder.add("promptText", (promptText != null)? promptText : (displayName != null)? displayName : name);
+        paramObjBuilder.add("helpText", helpText != null? helpText : "");
+
         switch(paramDefBase.getParameterType()){
-        case IParameterDefn.SCALAR_PARAMETER:
-            type = "scalar";
-            
-            IScalarParameterDefn param = (IScalarParameterDefn) paramDefBase;
-            defaultValue = paramDefTask.getDefaultValue(param);
-            fieldType = lookupFieldType(param.getDataType()); 
-            setDefaultValue(paramObjBuilder, param, defaultValue);
-            
-            isRequired = param.isRequired();
+        case IParameterDefn.CASCADING_PARAMETER_GROUP:
+            throw new NotImplementedException();
+        case IParameterDefn.PARAMETER_GROUP:
+            type = "group";
+            break;
         case IParameterDefn.LIST_PARAMETER:
             type = "list";
             break;
         case IParameterDefn.FILTER_PARAMETER:
             type = "filter";
             break;
+        case IParameterDefn.SCALAR_PARAMETER:
+            type = "scalar";
+
+            IScalarParameterDefn param = (IScalarParameterDefn) paramDefBase;
+            defaultValue = paramDefTask.getDefaultValue(param);
+            fieldType = lookupFieldType(param.getDataType()); 
+            setDefaultValue(paramObjBuilder, param, defaultValue);
+            isRequired = param.isRequired();
+
+            paramObjBuilder.add("fieldType", fieldType);
+            paramObjBuilder.add("required", isRequired);
+
+            selectionList = paramDefTask.getSelectionList(name);
+            if(selectionList != null){
+                JsonArrayBuilder selectionListBuilder = Json.createArrayBuilder();
+                JsonArrayBuilder choiceBuilder = Json.createArrayBuilder();
+                for(IParameterSelectionChoice choice : selectionList){
+                    push(choiceBuilder, paramDefBase, choice.getValue());
+                    push(choiceBuilder, paramDefBase, choice.getLabel());
+                    logger.log(Level.FINE, "\t" + choice.getValue() + ": " + choice.getLabel());
+                    selectionListBuilder.add(choiceBuilder);
+                }
+                paramObjBuilder.add("selection", selectionListBuilder);
+            }
+            break;
         default:
             type = "unknown <" + paramDefBase.getParameterType() + ">";
         }
-        
-        paramObjBuilder.add("name", name);
-        paramObjBuilder.add("promptText", promptText != null? promptText : name);
-        paramObjBuilder.add("fieldType", fieldType);
-        paramObjBuilder.add("required", isRequired);
-        paramObjBuilder.add("helpText", helpText != null? helpText : "");
-        
-        selectionList = paramDefTask.getSelectionList(name);
-        if(selectionList != null){
-            JsonArrayBuilder selectionListBuilder = Json.createArrayBuilder();
-            JsonArrayBuilder choiceBuilder = Json.createArrayBuilder();
-            for(IParameterSelectionChoice choice : selectionList){
-                push(choiceBuilder, paramDefBase, choice.getValue());
-                push(choiceBuilder, paramDefBase, choice.getLabel());
-                logger.log(Level.FINE, "\t" + choice.getValue() + ": " + choice.getLabel());
-                selectionListBuilder.add(choiceBuilder);
-            }
-            paramObjBuilder.add("selection", selectionListBuilder);
+
+        paramObjBuilder.add("type", type);
+        if(paramDefBase instanceof IParameterGroupDefn){
+            enumParameterGroup(paramDefTask, (IParameterGroupDefn) paramDefBase, paramObjBuilder);
         }
+
         logger.log(Level.FINE, name + ", " + type + "<" + fieldType + ">, [" + defaultValue + "]");
     }
 }

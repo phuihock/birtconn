@@ -6,15 +6,14 @@
             <field name="type">form</field>
             <field name="arch" type="xml">
                 <form string="Birt Report Wizard" version="7.0">
-                    <group>
+                    <sheet>
                         <group name="values"/>
-                        <group/>
-                    </group>
-                    <footer>
-                        <button name="print_report" type="object" string="Print" class="oe_highlight"/>
-                        or
-                        <button string="Cancel" class="oe_link" special="cancel"/>
-                    </footer>
+                        <footer>
+                            <button name="print_report" type="object" string="Print" class="oe_highlight"/>
+                            or
+                            <button string="Cancel" class="oe_link" special="cancel"/>
+                        </footer>
+                    </sheet>
                 </form>
             </field>
         </record>
