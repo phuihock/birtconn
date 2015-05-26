@@ -9,7 +9,7 @@
                 header="False"/>
 
         <record id="action_birt_test_parameters_rpt" model="ir.actions.act_window">
-            <field name="name">Parameters</field>
+            <field name="name">Test</field>
             <field name="res_model">report_birt.report_wizard</field>
             <field name="view_type">form</field>
             <field name="view_mode">form</field>
@@ -19,7 +19,7 @@
 
         <menuitem id="menu_birt_root" parent="base.menu_reporting" name="BIRT" sequence="200"/>
         <menuitem
-            name="Parameters"
+            name="Test"
             parent="menu_birt_root"
             action="action_birt_test_parameters_rpt"
             id="menu_birt_test_parameters_rpt"
