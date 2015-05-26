@@ -34,6 +34,8 @@ import org.eclipse.birt.report.engine.api.ReportRunner;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
+import com.ibm.icu.util.TimeZone;
+
 public class ReportGenerator {
     static protected Logger logger = Logger.getLogger(ReportRunner.class.getName());
 
@@ -66,7 +68,7 @@ public class ReportGenerator {
         return type;
     }
 
-    void run(IReportRunnable reportRunnable, String format, String htmlType, String targetFile, JsonObject values)
+    void run(IReportRunnable reportRunnable, String format, TimeZone timeZone, String htmlType, String targetFile, JsonObject values)
             throws EngineException {
         
         ReportParametersInspector inspector = new ReportParametersInspector(reportEngine);
@@ -106,7 +108,7 @@ public class ReportGenerator {
 
         // setup the locale
         task.setLocale(getLocale(locale));
-
+        task.setTimeZone(timeZone);
         task.run();
     }
 

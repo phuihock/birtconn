@@ -37,6 +37,8 @@ import org.eclipse.birt.report.engine.api.IReportRunnable;
 import org.eclipse.birt.report.engine.api.ReportRunner;
 import org.eclipse.core.internal.registry.RegistryProviderFactory;
 
+import com.ibm.icu.util.TimeZone;
+
 @Path("/report")
 public class ReportResource {
     static protected Logger logger = Logger.getLogger(ReportRunner.class.getName());
@@ -105,8 +107,9 @@ public class ReportResource {
 
         try {
             String format = values.getString("__format", "pdf");
+            TimeZone timeZone = TimeZone.getTimeZone(values.getString("__timezone", "Asia/Kuala_Lumpur"));
             String path = getPath(UUID.randomUUID().toString(), format).getPath();
-            generator.run(reportRunnable, format, htmlType, path, values);
+            generator.run(reportRunnable, format, timeZone, htmlType, path, values);
             return buildFileResponseOk(reportFile, path, format);
         } catch (NamingException e) {
             logger.log(Level.SEVERE, e.getMessage(), e);
