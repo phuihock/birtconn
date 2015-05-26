@@ -7,6 +7,7 @@ from openerp import netsvc, tools
 from openerp.osv import fields, osv
 from openerp.report.interface import report_int
 import os
+import re
 import requests
 import simplejson as json
 
@@ -224,25 +225,24 @@ report_birt_report_wizard()
 
 
 class report_birt(report_int):
-    def __init__(self, name, table, report_file, report_type):
+    def __init__(self, name, table, report_file):
         super(report_birt, self).__init__(name)
         self.table = table
         self.report_file = report_file
-        self.report_type = report_type
 
     def create(self, cr, uid, ids, values, context):
         headers = {'Content-type': 'application/json', 'Accept': 'application/octet-stream'}
         data = {
-            'report_file': self.report_file,
+            'reportFile': self.report_file,
             'values': values,
-            'format': self.report_type,
         }
 
         api = tools.config.get_misc('birt-rs', 'api')
         report_api = os.path.join(api, 'report')
 
         r = requests.post(report_api, data=json.dumps(data, default=serialize), headers=headers)
-        return (r.content, self.report_type)
+        ext = re.search(r'filename=.+\.(.+);?', r.headers['content-disposition']).group(1)
+        return (r.content, ext)
 
 
 class registry(osv.osv):
@@ -255,6 +255,6 @@ class registry(osv.osv):
         for r in result:
             if svcs.has_key('report.' + r['report_name']):
                 continue
-            report_birt('report.' + r['report_name'], r['model'], r['report_file'], r['report_type'])
+            report_birt('report.' + r['report_name'], r['model'], r['report_file'])
         super(registry, self).register_all(cr)
 registry()

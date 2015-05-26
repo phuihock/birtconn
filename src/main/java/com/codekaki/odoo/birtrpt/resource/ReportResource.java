@@ -94,20 +94,20 @@ public class ReportResource {
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response create(final JsonObject args) {
-        String report_file = args.getString("report_file", null);
-        String format = args.getString("format", "PDF");
+        String reportFile = args.getString("reportFile", null);
         String htmlType = args.getString("htmlType", null);
         String encoding = args.getString("encoding", "UTF-8");
         String locale = args.getString("locale", "en");
         JsonObject values = args.getJsonObject("values");
         
-        IReportRunnable reportRunnable = getReportDesign(report_file);
+        IReportRunnable reportRunnable = getReportDesign(reportFile);
         ReportGenerator generator = new ReportGenerator(getReportEngine(), encoding, locale);
 
         try {
-            String path = buildTargetFilePath(UUID.randomUUID().toString(), format).getPath();
+            String format = values.getString("__format", "pdf");
+            String path = getPath(UUID.randomUUID().toString(), format).getPath();
             generator.run(reportRunnable, format, htmlType, path, values);
-            return buildFileResponseOk(report_file, path, format);
+            return buildFileResponseOk(reportFile, path, format);
         } catch (NamingException e) {
             logger.log(Level.SEVERE, e.getMessage(), e);
         } catch (EngineException e) {
@@ -134,7 +134,7 @@ public class ReportResource {
         return null;
     }
 
-    File buildTargetFilePath(String targetFile, String format) throws NamingException {
+    File getPath(String targetFile, String format) throws NamingException {
         InitialContext ctx = new InitialContext();
         String targetDir = (String) ctx.lookup("java:comp/env/birt/output");
         targetFile += "." + format.toLowerCase();
@@ -142,7 +142,7 @@ public class ReportResource {
         return file;
     }
 
-    Response buildFileResponseOk(String report_file, final String path, final String format) {
+    Response buildFileResponseOk(String reportFile, final String path, final String format) {
         StreamingOutput stream = new StreamingOutput() {
             @Override
             public void write(OutputStream output) throws IOException {
@@ -175,7 +175,7 @@ public class ReportResource {
 
         String fileName = new File(path).getName();
         ResponseBuilder response = Response.ok(stream, getReportEngine().getMIMEType(format)).header(
-                "content-disposition", "attachment; filename = " + fileName);
+                "content-disposition", "attachment; filename=" + fileName);
 
         return response.build();
     }

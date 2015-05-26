@@ -1,11 +1,10 @@
 <openerp>
     <data>
         <report id="report_birt.report_test"
-                string="Test Report"
+                string="Test"
                 model="report_birt.report_wizard"
                 name="birt.test"
                 file="test.rptdesign"
-                report_type="pdf"
                 header="False"/>
 
         <record id="action_birt_test_parameters_rpt" model="ir.actions.act_window">
