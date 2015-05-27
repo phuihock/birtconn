@@ -6,6 +6,38 @@
     <property name="bidiLayoutOrientation">ltr</property>
     <property name="imageDPI">96</property>
     <parameters>
+        <scalar-parameter name="__format" id="61">
+            <text-property name="promptText">Format</text-property>
+            <property name="valueType">static</property>
+            <property name="sortBy">label</property>
+            <property name="sortDirection">asc</property>
+            <property name="dataType">string</property>
+            <property name="distinct">true</property>
+            <simple-property-list name="defaultValue">
+                <value type="constant">ods</value>
+            </simple-property-list>
+            <list-property name="selectionList">
+                <structure>
+                    <property name="value">pdf</property>
+                    <property name="label">PDF (.pdf)</property>
+                </structure>
+                <structure>
+                    <property name="value">xls</property>
+                    <property name="label">Microsoft Excel (.xls)</property>
+                </structure>
+                <structure>
+                    <property name="value">ods</property>
+                    <property name="label">OpenDocument Spreadsheet (.ods)</property>
+                </structure>
+            </list-property>
+            <property name="paramType">simple</property>
+            <property name="controlType">list-box</property>
+            <property name="mustMatch">false</property>
+            <property name="fixedOrder">false</property>
+            <structure name="format">
+                <property name="category">Unformatted</property>
+            </structure>
+        </scalar-parameter>
         <scalar-parameter name="string" id="10">
             <text-property name="promptText">String</text-property>
             <property name="valueType">static</property>
