@@ -110,6 +110,7 @@ public class ReportGenerator {
         task.setLocale(getLocale(locale));
         task.setTimeZone(timeZone);
         task.run();
+        task.close();
     }
 
     @SuppressWarnings("unchecked")

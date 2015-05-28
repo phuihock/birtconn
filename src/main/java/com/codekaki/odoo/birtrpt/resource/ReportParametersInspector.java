@@ -81,6 +81,7 @@ public class ReportParametersInspector {
             enumParameter(paramDefTask, param, paramObjBuilder);
             parametersBuilder.add(paramObjBuilder);
         }
+        paramDefTask.close();
         return parametersBuilder.build();
     }
     
