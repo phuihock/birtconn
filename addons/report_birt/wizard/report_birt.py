@@ -50,15 +50,19 @@ class report_birt_report_wizard(osv.osv_memory):
         parameters = self._report_get(cr, uid, context)
         for param in parameters:
             name = param['name']
-            if param['type'] == 'scalar':
+            ptype = param['type'].split('/')
+            if ptype[0] == "scalar":
                 fieldType = param['fieldType']
                 if fieldType == 'time':
-                    # time is actually not a field, and is not supported by OpenERP by default.
-                    # is a type of parameter that is directly supported by birt reporting.
-                    # we treat time as datetime field, but set to use timepicker widget instead.
+                    # 'time' is not supported by OpenERP by default, but datetime is. So, we treat time as datetime field
+                    # and use our custom timepicker widget.
                     fieldType = 'datetime'
 
-                if fieldType in ['boolean']:
+                if fieldType == 'char' and ptype[1] == 'multi-value':
+                    val = param['defaultValue']
+                elif fieldType in ['boolean']:
+                    # unfortunately, boolean field setter converts False to 'False', a truthful value.
+                    # so we override it with the raw value which is in the correct type.
                     val = param['defaultValue']
                 else:
                     val = getattr(fields, fieldType)(string=param['promptText'])._symbol_set[1](param['defaultValue'])
@@ -69,11 +73,18 @@ class report_birt_report_wizard(osv.osv_memory):
     def fields_get_meta(self, cr, uid, param, context, res, fgroup=None):
         name = param['name']
         meta = {}
-        if param['type'] == 'group':
+        ptype = param['type'].split('/')
+
+        if ptype[0] == 'group':
             for p in param['parameters']:
                 self.fields_get_meta(cr, uid, p, context, res, {'name': param['name'], 'string': param['promptText']})
 
-        if param['type'] == 'scalar':
+        if ptype[0] == 'scalar':
+            meta['type'] = param['fieldType']
+            meta['context'] = {
+                'scalar': ptype[1]
+            }
+
             # refer to field_to_dict if you don't understand why
             if 'selection' in param and param['selection']:
                 # NOTE: key must be a string, or else the dropdown box will not
@@ -81,16 +92,15 @@ class report_birt_report_wizard(osv.osv_memory):
                 # however, this will transform non-string value such as boolean,
                 # integer into string, which must be taken care of when sending
                 # the values to report server.
-                meta['selection'] = [(str(x), y) for (x, y) in param['selection']]
-                meta['type'] = 'selection'  # visual type
-            else:
-                meta['type'] = param['fieldType']
+                meta['selection'] = [(unicode(x), y) for (x, y) in param['selection']]
+                if ptype[-1] == 'simple':
+                    meta['type'] = 'selection'  # override default input type
 
             meta['string'] = param['promptText']
             meta['required'] = param['required']
             meta['help'] = param['helpText']
-            meta['context'] = {'type': param['fieldType']}  # actual data type
 
+            meta['context']['type'] = param['fieldType']  # actual data type
             if fgroup:
                 meta['context']['fgroup'] = fgroup
             res[name] = meta
@@ -111,11 +121,12 @@ class report_birt_report_wizard(osv.osv_memory):
         def order_by(parameters):
             def _wrap(name):
                 for i, param in enumerate(parameters):
-                    if param['type'] == 'group':
+                    ptype = param['type'].split('/')
+                    if ptype[0] == 'group':
                         j = order_by(param['parameters'])(name)
                         if j != -1:
                             return (i * 10) + j
-                    elif param['type'] == 'scalar' and param['name'] == name:
+                    elif ptype[0] == 'scalar' and param['name'] == name:
                             return (i * 10)
                 return -1
             return _wrap
@@ -170,20 +181,29 @@ class report_birt_report_wizard(osv.osv_memory):
         fg = self.fields_get(cr, uid, context={'report_name': report_name})
         for (name, descriptor) in fg.items():
             if name not in self._columns:
+                s1 = descriptor['context']['scalar']
                 t1 = descriptor['context']['type']
                 v1 = values[name]
 
-                if t1 == 'boolean':
-                    # this is how OpenERP field represents boolean value
-                    v2 = v1 == 'True'
+                # cast value to the correct type with OpenERP's internal setter
+                v2 = getattr(fields, t1)(**descriptor)._symbol_set[1](v1)
+
+                # but sometimes, we have to override value to a different type because
+                # OpenERP is slightly different/not supporting param type BIRT expects.
+                if t1 == 'char' and s1 == 'multi-value':
+                    # our multivalue checkbox widget that sends values in an array
+                    if not isinstance(v1, (list, tuple)):
+                        v1 = [v1]
+                    v2 = v1
+                elif t1 == 'boolean':
+                    # OpenERP represents a truthful value with 'True' string
+                    v2 = (v1 == 'True')
                 elif t1 == 'time':
                     # NOTE: time is represented as datetime field with custom timepicker widget
                     time_format = lang_dict['time_format']
                     cc = time_format.count(':') + 1
                     v2 = datetime.strptime(':'.join(v1.split(':')[:cc]), time_format)
                     v2 = getattr(fields, 'datetime')(**descriptor)._symbol_set[1](v1)
-                else:
-                    v2 = getattr(fields, t1)(**descriptor)._symbol_set[1](v1)
 
                 values[name] = v2
 
@@ -212,9 +232,14 @@ class report_birt_report_wizard(osv.osv_memory):
                 el = etree.SubElement(_g, 'field', name=field)
             else:
                 el = etree.SubElement(group_values, 'field', name=field)
+
             if field == 'time':
-                # use our custom timepicker widget
+                # use custom timepicker widget
                 el.set('widget', 'timepicker')
+
+            if 'multi-value' == descriptor.get('context', {}).get('scalar'):
+                # use custom multiselect widget
+                el.set('widget', 'multiselect')
 
         xarch, xfields = self._view_look_dom_arch(cr, uid, xarch, view_id, context=context)
         res['fields'] = xfields

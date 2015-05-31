@@ -63,4 +63,59 @@ openerp.report_birt = function(instance) {
         }
     });
     instance.web.list.columns.add('field.time', 'instance.report_birt.TimeColumn');
+
+    instance.report_birt.FieldMultiSelect = instance.web.form.FieldSelection.extend({
+        template: 'FieldMultiSelect',
+        widget_class: "oe_form_field_multiselect", store_dom_value: function () {
+            if (!this.get('effective_readonly')) {
+                var cur_value = this.get_value(),
+                    new_value = this.$('select').val();
+
+                var changed = _.find(new_value, function(e){
+                    return !_.contains(cur_value, e);
+                });
+                if(!!changed){
+                    this.internal_set_value(new_value);
+                }
+            }
+        },
+        set_value: function(value_) {
+            value_ = value_ === null ? false : value_;
+            this.set({'value': value_});
+        },
+        store_dom_value: function () {
+            if (!this.get('effective_readonly') && this.$('option:selected').length) {
+                var cur_value = this.get_value(),
+                    new_value = this.$('option:selected').map(function(i, e){
+                        return e.value;
+                    }).toArray();
+
+                // check for additions and removal
+                var changed = _.intersection(new_value, cur_value).length != Math.max(new_value.length, cur_value.length);
+                if(changed){
+                    this.internal_set_value(new_value);
+                }
+            }
+        },
+        render_value: function() {
+            var cur_value = this.get_value();
+            if (!this.get("effective_readonly")) {
+                this.$('option').each(function(i, e){
+                    // '*' which means select all (not a BIRT construct. BIRT supports only constant default values)
+                    if((!!e.value && cur_value[0] == '*') || _.contains(cur_value, e.value)){
+                        $(this).attr('selected', 'selected');
+                    }
+                });
+            } else {
+                var ul = $('<ul>'), li; 
+                _(cur_value).each(function(e){
+                    li = $('<ol>');
+                    li.text(e);
+                    ul.append(li);
+                });
+                this.$el.empty().append(ul);
+            }
+        }
+    });
+    instance.web.form.widgets.add('multiselect', 'instance.report_birt.FieldMultiSelect');
 };

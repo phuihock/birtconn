@@ -8,8 +8,9 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -39,20 +40,44 @@ public class ReportParametersInspector {
     private static final DateFormat DEFAULT_SERVER_DATETIME = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private static final DateFormat DEFAULT_SERVER_DATE = new SimpleDateFormat("yyyy-MM-dd");
-    
+
     private static final DateFormat DEFAULT_SERVER_TIME = new SimpleDateFormat("HH:mm:ss");
-    
+
     static protected Logger logger = Logger.getLogger( ReportRunner.class .getName( ));
-    
+
     IReportEngine reportEngine = null;
-    
+
+    private final Map<Class<?>, Class<?>> mappings;
+
     public ReportParametersInspector(IReportEngine reportEngine) {
         this.reportEngine = reportEngine;
+
+        mappings = new HashMap<Class<?>, Class<?>>();
+        mappings.put(BigDecimal.class, BigDecimal.class);
+        mappings.put(BigInteger.class, BigInteger.class);
+        mappings.put(Boolean.class, boolean.class);
+        mappings.put(Double.class, double.class);
+        mappings.put(Integer.class, int.class);
+        mappings.put(Long.class, long.class);
+        mappings.put(String.class, String.class);
+    }
+
+    /**
+     * Given value v, this method lookups the matching javax.json (JSR-353 JSONP) class.
+     * @param param report parameter
+     * @param v value
+     * @return the class the value v mapped to
+     */
+    private Class<?> lookupJsonArgType(Object v){
+        if(mappings.containsKey(v.getClass())){
+            return mappings.get(v.getClass());
+        }
+        return String.class;
     }
 
     List<IParameterDefnBase> getParameters(IReportRunnable reportRunnable){
         IGetParameterDefinitionTask paramDefTask = reportEngine.createGetParameterDefinitionTask(reportRunnable);
-        
+
         @SuppressWarnings("unchecked")
         Collection<IParameterDefnBase> coll = paramDefTask.getParameterDefns(true);
         java.util.Iterator<IParameterDefnBase> it = coll.iterator();
@@ -72,7 +97,7 @@ public class ReportParametersInspector {
         }
         return parameters;
     }
-    
+
     JsonArray enumParameters(IReportRunnable reportRunnable){
         IGetParameterDefinitionTask paramDefTask = reportEngine.createGetParameterDefinitionTask(reportRunnable);
         JsonArrayBuilder parametersBuilder = Json.createArrayBuilder();
@@ -84,7 +109,7 @@ public class ReportParametersInspector {
         paramDefTask.close();
         return parametersBuilder.build();
     }
-    
+
     String lookupFieldType(int dataType){
         /*
         _type = 'unknown'
@@ -116,37 +141,20 @@ public class ReportParametersInspector {
             return "char";
         }
     }
-        
-    /**
-     * Given value v, this method lookups the matching javax.json (JSR-353 JSONP) class. 
-     * @param param report parameter
-     * @param v value
-     * @return the class the value v mapped to
-     */
-    private Class<?> lookupJsonMethodValueArgClass(IParameterDefnBase param, Object v){
-        @SuppressWarnings("rawtypes")
-        Class[][] mappings = {
-                {BigDecimal.class, BigDecimal.class},
-                {BigInteger.class, BigInteger.class}, 
-                {Boolean.class, boolean.class}, 
-                {Double.class, double.class}, 
-                {Integer.class, int.class}, 
-                {Long.class, long.class}, 
-                {String.class, String.class}
-        };
-        
-        for(Class<?>[] map : mappings){
-            if(v.getClass() == map[0]){
-                return map[1];
-            }
-        }
-                
-        return String.class;
-    }
-    
+
     private void setDefaultValue(JsonObjectBuilder jsonObjectBuilder, IParameterDefn param, Object defaultValue){
-        if(defaultValue != null){
-            Class<?> clz = lookupJsonMethodValueArgClass(param, defaultValue);
+        if(defaultValue instanceof Object[]){
+            JsonArrayBuilder ab = Json.createArrayBuilder();
+            for(Object v : (Object[]) defaultValue){
+                push(ab, v);
+            }
+            jsonObjectBuilder.add("defaultValue", ab);
+        }
+        else if(defaultValue == null){
+            jsonObjectBuilder.addNull("defaultValue");
+        }
+        else{
+            Class<?> clz = lookupJsonArgType(defaultValue);
             if(clz != null){
                 try{
                     Method method = JsonObjectBuilder.class.getMethod("add", String.class, clz);
@@ -164,7 +172,6 @@ public class ReportParametersInspector {
                             break;
                         }
                     }
-                    
                     method.invoke(jsonObjectBuilder, "defaultValue", defaultValue);
                 } catch(NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e){
                     logger.log(Level.SEVERE, e.getMessage(), e);
@@ -174,17 +181,14 @@ public class ReportParametersInspector {
                 logger.log(Level.WARNING, "Can't set default value. There is no add(String, " + defaultValue.getClass().getName() + ") method.");
             }
         }
-        else{
-            jsonObjectBuilder.addNull("defaultValue");
-        }
     }
-    
-    private void push(JsonArrayBuilder jsonArrayBuilder, IParameterDefnBase param, Object obj){
+
+    private void push(JsonArrayBuilder jsonArrayBuilder, Object obj){
         if(obj == null){
             jsonArrayBuilder.addNull();
         }
         else{
-            Class<?> clz = lookupJsonMethodValueArgClass(param, obj);
+            Class<?> clz = lookupJsonArgType(obj);
             if(clz != null){
                 try{
                     Method method = JsonArrayBuilder.class.getMethod("add", clz);
@@ -198,7 +202,7 @@ public class ReportParametersInspector {
             }
         }
     }
-    
+
     @SuppressWarnings("unchecked")
     private void enumParameterGroup(IGetParameterDefinitionTask paramDefTask, IParameterGroupDefn paramGroupDefn, JsonObjectBuilder paramObjBuilder) {
         JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
@@ -239,11 +243,11 @@ public class ReportParametersInspector {
             type = "filter";
             break;
         case IParameterDefn.SCALAR_PARAMETER:
-            type = "scalar";
-
             IScalarParameterDefn param = (IScalarParameterDefn) paramDefBase;
+
+            type = "scalar/" + param.getScalarParameterType();
             defaultValue = paramDefTask.getDefaultValue(param);
-            fieldType = lookupFieldType(param.getDataType()); 
+            fieldType = lookupFieldType(param.getDataType());
             setDefaultValue(paramObjBuilder, param, defaultValue);
             isRequired = param.isRequired();
 
@@ -255,8 +259,8 @@ public class ReportParametersInspector {
                 JsonArrayBuilder selectionListBuilder = Json.createArrayBuilder();
                 JsonArrayBuilder choiceBuilder = Json.createArrayBuilder();
                 for(IParameterSelectionChoice choice : selectionList){
-                    push(choiceBuilder, paramDefBase, choice.getValue());
-                    push(choiceBuilder, paramDefBase, choice.getLabel());
+                    push(choiceBuilder, choice.getValue());
+                    push(choiceBuilder, choice.getLabel());
                     logger.log(Level.FINE, "\t" + choice.getValue() + ": " + choice.getLabel());
                     selectionListBuilder.add(choiceBuilder);
                 }

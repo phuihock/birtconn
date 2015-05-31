@@ -14,6 +14,7 @@ import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.json.JsonArray;
 import javax.json.JsonNumber;
 import javax.json.JsonObject;
 import javax.json.JsonString;
@@ -42,25 +43,24 @@ public class ReportGenerator {
     IReportEngine reportEngine;
     String encoding;
     String locale;
-    Map<String, Class<?>> paramsType;
+    final Map<String, Class<?>> paramsType;
 
     public ReportGenerator(IReportEngine reportEngine, String encoding, String locale) {
         this.reportEngine = reportEngine;
         this.encoding = encoding;
         this.locale = locale;
+
+        paramsType = new HashMap<String, Class<?>>();
+        paramsType.put("boolean", Boolean.class);
+        paramsType.put("integer", Integer.class);
+        paramsType.put("float", Float.class);
+        paramsType.put("decimal", BigDecimal.class);
+        paramsType.put("datetime", Timestamp.class);
+        paramsType.put("date", Date.class);
+        paramsType.put("time", Time.class);
     }
 
-    private Class<?> lookupParamType(String fieldType) {
-        if(paramsType == null){
-            paramsType = new HashMap<String, Class<?>>();
-            paramsType.put("boolean", Boolean.class); 
-            paramsType.put("integer", Integer.class); 
-            paramsType.put("float", Float.class);
-            paramsType.put("decimal", BigDecimal.class); 
-            paramsType.put("datetime", Timestamp.class); 
-            paramsType.put("date", Date.class);
-            paramsType.put("time", Time.class); 
-        }
+    private Class<?> lookupParameterType(String fieldType) {
         Class<?> type = paramsType.get(fieldType);
         if(type == null){
             return String.class;
@@ -70,13 +70,13 @@ public class ReportGenerator {
 
     void run(IReportRunnable reportRunnable, String format, TimeZone timeZone, String htmlType, String targetFile, JsonObject values)
             throws EngineException {
-        
+
         ReportParametersInspector inspector = new ReportParametersInspector(reportEngine);
         List<IParameterDefnBase> parameters = inspector.getParameters(reportRunnable);
-        
+
         Map<String, String> map = new HashMap<String, String>(parameters.size());
         flattenParameters(inspector, parameters, map);
-        
+
         IRunAndRenderTask task = reportEngine.createRunAndRenderTask(reportRunnable);
         for (Entry<String, JsonValue> entry : values.entrySet()) {
             String name = entry.getKey();
@@ -131,41 +131,63 @@ public class ReportGenerator {
     }
 
     private void setParameter(IRunAndRenderTask task, String name, String fieldType, JsonValue val) {
-        Class<?> clz = lookupParamType(fieldType);
-        Object value = null;
+        Class<?> clz = lookupParameterType(fieldType);
+        Object value = extractJsonValue(val, clz);
+        if(value instanceof Object[]){
+            Object[] values = (Object[]) value;
+            String[] displayText = new String[values.length];
+            for(int i = 0; i < displayText.length; i++){
+                displayText[i] = String.valueOf(values[i]);
+            }
+            task.setParameter(name, values, displayText);
+        }
+        else {
+            task.setParameter(name, value, String.valueOf(value));
+        }
+    }
+
+    private Object extractJsonValue(JsonValue val, Class<?> clz) {
+        Object actualValue;
         switch(val.getValueType()){
         case FALSE:
-            value = false;
+            actualValue = false;
             break;
         case TRUE:
-            value = true;
+            actualValue = true;
             break;
         case NULL:
-            value = null;
+            actualValue = null;
             break;
         case NUMBER:
             JsonNumber number = (JsonNumber) val;
             if(number.isIntegral()){
-                value = number.intValue();
+                actualValue = number.intValue();
             }
             else{
-                value = number.doubleValue();
+                actualValue = number.doubleValue();
             }
+            break;
+        case ARRAY:
+            JsonArray arr = (JsonArray) val;
+            Object[] values = new Object[arr.size()];
+
+            for(int i = 0, j = arr.size(); i < j; i++){
+                values[i] = extractJsonValue(arr.get(i), clz);
+            }
+            actualValue = values;
             break;
         default:
             JsonString string = (JsonString) val;
-            value = string.getString();
-            if(!fieldType.equals("char")){
-                try {
-                    Method mValueOf = clz.getMethod("valueOf", String.class);
-                    value = mValueOf.invoke(clz, value);
-                } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                    logger.log(Level.SEVERE, e.getMessage(), e);
-                }
+            actualValue = string.getString();
+            try {
+                Method mValueOf = clz.getMethod("valueOf", String.class);
+                actualValue = mValueOf.invoke(clz, actualValue);
+            } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException
+                    | InvocationTargetException e) {
+                logger.log(Level.SEVERE, e.getMessage(), e);
             }
-            break;
         }
-        task.setParameter(name, value, String.valueOf(value));
+        return actualValue;
     }
 
     private Locale getLocale(String locale) {

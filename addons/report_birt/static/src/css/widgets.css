@@ -1,0 +1,8 @@
+.openerp .oe_form .oe_form_field_multiselect select {
+    height: 100%;
+}
+.openerp .oe_form .oe_form_field_multiselect ul,
+.openerp .oe_form .oe_form_field_multiselect ul ol {
+    margin: 0;
+    padding-left: 0;
+}
