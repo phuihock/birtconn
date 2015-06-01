@@ -6,6 +6,7 @@ from lxml import etree
 from openerp import netsvc, tools
 from openerp.osv import fields, osv
 from openerp.report.interface import report_int
+import openerp.pooler as pooler
 import os
 import re
 import requests
@@ -250,15 +251,18 @@ report_birt_report_wizard()
 
 
 class report_birt(report_int):
-    def __init__(self, name, table, report_file):
+    def __init__(self, name, table, reportxml_id):
         super(report_birt, self).__init__(name)
         self.table = table
-        self.report_file = report_file
+        self.reportxml_id = reportxml_id
 
     def create(self, cr, uid, ids, values, context):
+        pool = pooler.get_pool(cr.dbname)
+        pool_reportxml = pool.get('ir.actions.report.xml')
+        reportxml = pool_reportxml.browse(cr, uid, self.reportxml_id)
         headers = {'Content-type': 'application/json', 'Accept': 'application/octet-stream'}
         data = {
-            'reportFile': self.report_file,
+            'reportFile': reportxml.report_file,
             '__values': values,
         }
 
