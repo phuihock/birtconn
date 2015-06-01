@@ -177,14 +177,16 @@ public class ReportGenerator {
             actualValue = values;
             break;
         default:
-            JsonString string = (JsonString) val;
-            actualValue = string.getString();
-            try {
-                Method mValueOf = clz.getMethod("valueOf", String.class);
-                actualValue = mValueOf.invoke(clz, actualValue);
-            } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException
-                    | InvocationTargetException e) {
-                logger.log(Level.SEVERE, e.getMessage(), e);
+            JsonString unknown = (JsonString) val;
+            actualValue = unknown.getString();
+            if(clz != String.class){
+                try {
+                    Method mValueOf = clz.getMethod("valueOf", String.class);
+                    actualValue = mValueOf.invoke(clz, actualValue);
+                } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException
+                        | InvocationTargetException e) {
+                    logger.log(Level.SEVERE, e.getMessage(), e);
+                }
             }
         }
         return actualValue;
