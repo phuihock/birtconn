@@ -100,7 +100,7 @@ public class ReportResource {
         String htmlType = args.getString("htmlType", null);
         String encoding = args.getString("encoding", "UTF-8");
         String locale = args.getString("locale", "en");
-        JsonObject values = args.getJsonObject("values");
+        JsonObject values = args.getJsonObject("__values");
         
         IReportRunnable reportRunnable = getReportDesign(reportFile);
         ReportGenerator generator = new ReportGenerator(getReportEngine(), encoding, locale);

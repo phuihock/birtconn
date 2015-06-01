@@ -27,8 +27,8 @@ class report_birt_report_wizard(osv.osv_memory):
     _description = 'Birt Report Wizard'
 
     _columns = {
-        'report_name': fields.char(size=64, string="Report Name"),
-        'values': fields.text(string="Values"),
+        '__report_name': fields.char(size=64, string="Report Name"),
+        '__values': fields.text(string="Values"),
     }
 
     def _report_get(self, cr, uid, context=None):
@@ -153,13 +153,13 @@ class report_birt_report_wizard(osv.osv_memory):
         # 'vals' contains all field/value pairs, including report_name, parameters and values.
         # But we don't have all the columns since they are dynamically generated
         # based on report's parameters.
-        values = dict(filter(lambda (x, y): x not in ['report_name', 'values'], vals.items()))
+        values = dict(filter(lambda (x, y): x not in ['__report_name', '__values'], vals.items()))
         values = json.dumps(values)
 
         report_name = context['report_name']
         vals = {
-            'report_name': report_name,
-            'values': values,
+            '__report_name': report_name,
+            '__values': values,
         }
         return super(report_birt_report_wizard, self).create(cr, uid, vals, context)
 
@@ -174,7 +174,7 @@ class report_birt_report_wizard(osv.osv_memory):
 
     def print_report(self, cr, uid, ids, context=None):
         lang_dict = self._get_lang_dict(cr, uid, context)
-        values = self.read(cr, uid, ids[0], ['values'], context=context)['values']
+        values = self.read(cr, uid, ids[0], ['__values'], context=context)['__values']
         values = json.loads(values)
 
         report_name = context['report_name']
@@ -219,7 +219,7 @@ class report_birt_report_wizard(osv.osv_memory):
             return res
 
         xarch = etree.XML(res['arch'])
-        group_values = xarch.xpath('//group[@name="values"]')[0]
+        group_values = xarch.xpath('//group[@name="__values"]')[0]
 
         for field, descriptor in self.fields_get(cr, uid, context=context).iteritems():
             if 'context' in descriptor and 'fgroup' in descriptor['context']:
@@ -259,7 +259,7 @@ class report_birt(report_int):
         headers = {'Content-type': 'application/json', 'Accept': 'application/octet-stream'}
         data = {
             'reportFile': self.report_file,
-            'values': values,
+            '__values': values,
         }
 
         api = tools.config.get_misc('birt-rs', 'api')

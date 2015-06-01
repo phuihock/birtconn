@@ -7,7 +7,7 @@
             <field name="arch" type="xml">
                 <form string="Birt Report Wizard" version="7.0">
                     <sheet>
-                        <group name="values"/>
+                        <group name="__values"/>
                         <footer>
                             <button name="print_report" type="object" string="Print" class="oe_highlight"/>
                             or
