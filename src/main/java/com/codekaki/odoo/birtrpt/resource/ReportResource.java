@@ -71,7 +71,7 @@ public class ReportResource {
         }
         return reportEngine;
     }
-    
+
 
     void shutdown(){
         reportEngine.destroy();
@@ -90,8 +90,8 @@ public class ReportResource {
         IReportRunnable reportRunnable = getReportDesign(report_file);
         return inspector.enumParameters(reportRunnable);
     }
-    
-    
+
+
     @POST
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     @Consumes(MediaType.APPLICATION_JSON)
@@ -101,7 +101,7 @@ public class ReportResource {
         String encoding = args.getString("encoding", "UTF-8");
         String locale = args.getString("locale", "en");
         JsonObject values = args.getJsonObject("__values");
-        
+
         IReportRunnable reportRunnable = getReportDesign(reportFile);
         ReportGenerator generator = new ReportGenerator(getReportEngine(), encoding, locale);
 
@@ -118,12 +118,13 @@ public class ReportResource {
         }
         return Response.status(Response.Status.BAD_REQUEST).build();
     }
-    
+
     IReportRunnable getReportDesign(String report_file) {
         java.nio.file.Path path = null;
         try {
             Context ctx = new InitialContext();
             String reportsDirectory = (String) ctx.lookup("java:comp/env/birt/reports");
+            logger.log(Level.INFO, "Looking for '" + report_file + "' file in " + reportsDirectory);
             path = Paths.get(reportsDirectory, report_file).normalize();
             if (path != null) {
                 return getReportEngine().openReportDesign(path.toFile().getPath());
