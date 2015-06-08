@@ -40,7 +40,7 @@ class report_birt_report_wizard(osv.osv_memory):
                 report_id = found[0]
                 report = report_obj.read(cr, uid, report_id, ['report_file'])
 
-                api = tools.config.get_misc('birt-rs', 'api')
+                api = tools.config.get_misc('birtconn', 'api')
                 report_api = os.path.join(api, 'report')
                 r = requests.get('%s?report_file=%s' % (report_api, report['report_file']))
                 return r.json()
@@ -266,7 +266,7 @@ class report_birt(report_int):
             '__values': values,
         }
 
-        api = tools.config.get_misc('birt-rs', 'api')
+        api = tools.config.get_misc('birtconn', 'api')
         report_api = os.path.join(api, 'report')
 
         r = requests.post(report_api, data=json.dumps(data, default=serialize), headers=headers)
