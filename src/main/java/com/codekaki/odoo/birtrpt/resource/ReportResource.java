@@ -103,18 +103,20 @@ public class ReportResource {
         JsonObject values = args.getJsonObject("__values");
 
         IReportRunnable reportRunnable = getReportDesign(reportFile);
-        ReportGenerator generator = new ReportGenerator(getReportEngine(), encoding, locale);
+        if(reportRunnable != null){
+            ReportGenerator generator = new ReportGenerator(getReportEngine(), encoding, locale);
 
-        try {
-            String format = values.getString("__format", "pdf");
-            TimeZone timeZone = TimeZone.getTimeZone(values.getString("__timezone", "Asia/Kuala_Lumpur"));
-            String path = getPath(UUID.randomUUID().toString(), format).getPath();
-            generator.run(reportRunnable, format, timeZone, htmlType, path, values);
-            return buildFileResponseOk(reportFile, path, format);
-        } catch (NamingException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
-        } catch (EngineException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
+            try {
+                String format = values.getString("__format", "pdf");
+                TimeZone timeZone = TimeZone.getTimeZone(values.getString("__timezone", "UTC"));
+                String path = getPath(UUID.randomUUID().toString(), format).getPath();
+                generator.run(reportRunnable, format, timeZone, htmlType, path, values);
+                return buildFileResponseOk(reportFile, path, format);
+            } catch (NamingException e) {
+                logger.log(Level.SEVERE, e.getMessage(), e);
+            } catch (EngineException e) {
+                logger.log(Level.SEVERE, e.getMessage(), e);
+            }
         }
         return Response.status(Response.Status.BAD_REQUEST).build();
     }
@@ -127,7 +129,13 @@ public class ReportResource {
             logger.log(Level.INFO, "Looking for '" + report_file + "' file in " + reportsDirectory);
             path = Paths.get(reportsDirectory, report_file).normalize();
             if (path != null) {
-                return getReportEngine().openReportDesign(path.toFile().getPath());
+                File file = path.toFile();
+                if(file.exists()){
+                    return getReportEngine().openReportDesign(file.getPath());
+                }
+                else{
+                    return null;
+                }
             }
         } catch (NamingException e) {
             logger.log(Level.SEVERE, e.getMessage(), e);
