@@ -46,9 +46,8 @@ class report_birt_report_wizard(osv.osv_memory):
                 return r.json()
         return {}
 
-    def default_get(self, cr, uid, fields_list, context=None):
+    def default_get_recursively(self, cr, uid, fields_list, parameters, context=None):
         res = {}
-        parameters = self._report_get(cr, uid, context)
         for param in parameters:
             name = param['name']
             ptype = param['type'].split('/')
@@ -68,8 +67,16 @@ class report_birt_report_wizard(osv.osv_memory):
                 else:
                     val = getattr(fields, fieldType)(string=param['promptText'])._symbol_set[1](param['defaultValue'])
                 res[name] = val
+            elif ptype[0] == "group":
+                parameters_g = param['parameters']
+                res_g = self.default_get_recursively(cr, uid, fields_list, parameters_g, context)
+                res.update(res_g)
         return res
 
+    def default_get(self, cr, uid, fields_list, context=None):
+        res = {}
+        parameters = self._report_get(cr, uid, context)
+        return self.default_get_recursively(cr, uid, fields_list, parameters, context)
 
     def fields_get_meta(self, cr, uid, param, context, res, fgroup=None):
         name = param['name']
