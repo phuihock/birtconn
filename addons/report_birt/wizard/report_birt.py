@@ -284,6 +284,6 @@ class registry(osv.osv):
         for r in result:
             if svcs.has_key('report.' + r['report_name']):
                 continue
-            report_birt('report.' + r['report_name'], r['model'], r['report_file'])
+            report_birt('report.' + r['report_name'], r['model'], r['id'])
         super(registry, self).register_all(cr)
 registry()
