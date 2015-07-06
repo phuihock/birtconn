@@ -14,7 +14,7 @@
         <env-entry-name>birt/output</env-entry-name>
     </env-entry>
     <resource-ref>
-        <res-ref-name>jdbc/${db.name}</res-ref-name>
+        <res-ref-name>jdbc/${jdbc.name}</res-ref-name>
     </resource-ref>
     <servlet>
         <servlet-name>Jersey Web Application</servlet-name>
