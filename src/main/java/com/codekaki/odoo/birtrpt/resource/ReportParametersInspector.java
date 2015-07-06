@@ -221,7 +221,8 @@ public class ReportParametersInspector {
         String promptText = paramDefBase.getPromptText();
         String type = "";
         String fieldType = "";
-        Boolean isRequired = true;;
+        Boolean isRequired = true;
+        Boolean isHidden = false;
         String helpText = paramDefBase.getHelpText();
         Object defaultValue = null;
         Collection<IParameterSelectionChoice> selectionList = null;
@@ -250,9 +251,11 @@ public class ReportParametersInspector {
             fieldType = lookupFieldType(param.getDataType());
             setDefaultValue(paramObjBuilder, param, defaultValue);
             isRequired = param.isRequired();
+            isHidden = param.isHidden();
 
             paramObjBuilder.add("fieldType", fieldType);
             paramObjBuilder.add("required", isRequired);
+            paramObjBuilder.add("hidden", isHidden);
 
             selectionList = paramDefTask.getSelectionList(name);
             if(selectionList != null){

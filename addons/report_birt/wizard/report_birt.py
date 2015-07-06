@@ -106,6 +106,7 @@ class report_birt_report_wizard(osv.osv_memory):
 
             meta['string'] = param['promptText']
             meta['required'] = param['required']
+            meta['invisible'] = param['hidden']
             meta['help'] = param['helpText']
 
             meta['context']['type'] = param['fieldType']  # actual data type
