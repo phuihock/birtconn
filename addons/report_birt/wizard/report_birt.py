@@ -204,9 +204,6 @@ class report_birt_report_wizard(osv.osv_memory):
                     if not isinstance(v1, (list, tuple)):
                         v1 = [v1]
                     v2 = v1
-                elif t1 == 'boolean':
-                    # OpenERP represents a truthful value with 'True' string
-                    v2 = (v1 == 'True')
                 elif t1 == 'time':
                     # NOTE: time is represented as datetime field with custom timepicker widget
                     time_format = lang_dict['time_format']
