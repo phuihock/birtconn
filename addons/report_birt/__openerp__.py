@@ -12,7 +12,7 @@ This module allows users to generate reports designed in Eclipse Birt
     'author': 'Codekaki Systems (R49045/14)',
     'website': 'http://codekaki.com',
     'summary': 'Birt, Report',
-    'depends': [],
+    'depends': ['base'],
     'demo': [
         'wizard/report_birt_demo.xml',
     ],
