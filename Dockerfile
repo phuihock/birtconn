@@ -1,20 +1,23 @@
-FROM phuihock/ubuntu:14.04.2-u20150708
+FROM phuihock/ubuntu:14.04.2_u150724.232741
 MAINTAINER Chang Phui-Hock <phuihock@codekaki.com>
-ENV DEBIAN_FRONTEND=noninteractive JETTY_VER=jetty-distribution-9.2.10.v20150310
+ENV DEBIAN_FRONTEND=noninteractive JAVA_VER=jdk-8u60-linux-x64 JETTY_VER=jetty-distribution-9.2.10.v20150310
+ENV PATH=/opt/jdk1.8.0_60/bin:$PATH
 EXPOSE 8080
 
 RUN echo 'Asia/Kuala_Lumpur' > /etc/timezone && dpkg-reconfigure tzdata
-RUN apt-get install -y openjdk-7-jre-headless;\
- apt-get clean
+
+# http://archive.eclipse.org/jetty/9.2.10.v20150310/dist/
+ADD var/$JAVA_VER.tar.gz  /opt
+
+# http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
 ADD var/$JETTY_VER.tar.gz /opt
+COPY jetty /opt/birt/jetty
+COPY target/birt /opt/birt/jetty/webapps/birt
+COPY reports /opt/birt/reports
 
-RUN useradd -m -d /opt/birt -s /bin/bash -G www-data codekaki
-WORKDIR /opt/birt
-COPY . .
-COPY target/birt jetty/webapps/birt
-
-VOLUME /opt/birt
-VOLUME /var/opt/birt/reports
-
+RUN useradd -d /opt/birt -s /bin/bash codekaki
 RUN chown -R codekaki:codekaki /opt/birt
+USER codekaki
+WORKDIR /opt/birt
+
 ENTRYPOINT java -jar /opt/$JETTY_VER/start.jar jetty.base=jetty
