@@ -42,6 +42,7 @@ class report_birt_report_wizard(osv.osv_memory):
 
                 api = tools.config.get_misc('birtconn', 'api')
                 report_api = os.path.join(api, 'report')
+
                 r = requests.get('%s?report_file=%s' % (report_api, report['report_file']))
                 return r.json()
         return {}
@@ -266,10 +267,15 @@ class report_birt(report_int):
         pool_reportxml = pool.get('ir.actions.report.xml')
         reportxml = pool_reportxml.browse(cr, uid, self.reportxml_id)
         headers = {'Content-type': 'application/json', 'Accept': 'application/octet-stream'}
+
+        if 'active_ids' in context:
+            values.update(active_ids=context['active_ids'])
+
         data = {
             'reportFile': reportxml.report_file,
             '__values': values,
         }
+
 
         api = tools.config.get_misc('birtconn', 'api')
         report_api = os.path.join(api, 'report')
@@ -283,7 +289,7 @@ class registry(osv.osv):
     _inherit = 'ir.actions.report.xml'
 
     def register_all(self, cr):
-        cr.execute("SELECT * FROM ir_act_report_xml WHERE auto=%s AND report_name LIKE 'birt.%%' ORDER BY id", (True,))
+        cr.execute("SELECT * FROM ir_act_report_xml WHERE report_name LIKE 'birt.%%' ORDER BY id")
         result = cr.dictfetchall()
         svcs = netsvc.Service._services
         for r in result:
