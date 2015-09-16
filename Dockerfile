@@ -6,10 +6,12 @@ EXPOSE 8080
 
 RUN echo 'Asia/Kuala_Lumpur' > /etc/timezone && dpkg-reconfigure tzdata
 
-# http://archive.eclipse.org/jetty/9.2.10.v20150310/dist/
+# Download Jetty 9.2.10 from http://archive.eclipse.org/jetty/9.2.10.v20150310/dist/ into var/ directory
+# wget http://archive.eclipse.org/jetty/9.2.10.v20150310/dist/jetty-distribution-9.2.10.v20150310.tar.gz -P var/
 ADD var/$JAVA_VER.tar.gz  /opt
 
-# http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+# Download JDK8 from http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+# into var/ directory
 ADD var/$JETTY_VER.tar.gz /opt
 COPY jetty /opt/birt/jetty
 COPY target/birt /opt/birt/jetty/webapps/birt
