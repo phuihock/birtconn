@@ -51,11 +51,6 @@
             <groupId>org.glassfish.jersey.containers</groupId>
             <artifactId>jersey-container-servlet-core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.codekaki.odoo</groupId>
-            <artifactId>rtrqc</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
     </dependencies>
 
     <build>
