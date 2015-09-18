@@ -3,7 +3,7 @@
 
 <Configure class="org.eclipse.jetty.webapp.WebAppContext">
     <New class="org.eclipse.jetty.plus.jndi.Resource">
-    <Arg>jdbc/birtconn</Arg>
+    <Arg>jdbc/birt</Arg>
     <Arg>
         <New class="org.postgresql.ds.PGSimpleDataSource">
             <Set name="User">
