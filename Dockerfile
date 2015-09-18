@@ -6,13 +6,14 @@ EXPOSE 8080
 
 RUN echo 'Asia/Kuala_Lumpur' > /etc/timezone && dpkg-reconfigure tzdata
 
-# Download Jetty 9.2.10 from http://archive.eclipse.org/jetty/9.2.10.v20150310/dist/ into var/ directory
-# wget http://archive.eclipse.org/jetty/9.2.10.v20150310/dist/jetty-distribution-9.2.10.v20150310.tar.gz -P var/
+# Download Jetty ${JETTY_VER} from http://download.eclipse.org/jetty/stable-9/dist/ into var/ directory
 ADD var/$JAVA_VER.tar.gz  /opt
 
 # Download JDK8 from http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
 # into var/ directory
 ADD var/$JETTY_VER.tar.gz /opt
+
+COPY entrypoint.sh /opt/birt/entrypoint.sh
 COPY jetty /opt/birt/jetty
 COPY target/birt /opt/birt/jetty/webapps/birt
 COPY reports /opt/birt/reports
@@ -22,4 +23,4 @@ RUN chown -R codekaki:codekaki /opt/birt
 USER codekaki
 WORKDIR /opt/birt
 
-ENTRYPOINT java -jar /opt/$JETTY_VER/start.jar jetty.base=jetty
+ENTRYPOINT sh entrypoint.sh

@@ -67,24 +67,6 @@
                     <target>1.7</target>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-war-plugin</artifactId>
-                <configuration>
-                    <webResources>
-                        <resource>
-                            <filtering>true</filtering>
-                            <directory>src/main/webapp</directory>
-                            <includes>
-                                <include>WEB-INF/*.xml</include>
-                            </includes>
-                        </resource>
-                    </webResources>
-                    <filters>
-                        <filter>${basedir}/${project.build.finalName}.properties</filter>
-                    </filters>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 

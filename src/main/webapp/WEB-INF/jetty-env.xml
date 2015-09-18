@@ -3,27 +3,37 @@
 
 <Configure class="org.eclipse.jetty.webapp.WebAppContext">
     <New class="org.eclipse.jetty.plus.jndi.Resource">
-    <Arg>jdbc/${jdbc.name}</Arg>
+    <Arg>jdbc/birtconn</Arg>
     <Arg>
         <New class="org.postgresql.ds.PGSimpleDataSource">
-            <Set name="User">${db.user}</Set>
-            <Set name="Password">${db.pass}</Set>
-            <Set name="DatabaseName">${db.name}</Set>
-            <Set name="ServerName">${db.host}</Set>
-            <Set name="PortNumber">${db.port}</Set>
+            <Set name="User">
+                <SystemProperty name="DB_USER"/>
+            </Set>
+            <Set name="Password">
+                <SystemProperty name="DB_PASS"/>
+            </Set>
+            <Set name="DatabaseName">
+                <SystemProperty name="DB_NAME"/>
+            </Set>
+            <Set name="ServerName">
+                <SystemProperty name="DB_HOST"/>
+            </Set>
+            <Set name="PortNumber">
+                <SystemProperty type="int" name="DB_PORT" default="5432"/>
+            </Set>
         </New>
     </Arg>
     </New>
     <New class="org.eclipse.jetty.plus.jndi.EnvEntry">
         <Arg>birt/resources</Arg>
-        <Arg>${birt.resources}</Arg>
+        <Arg><SystemProperty name="birt.resources" default="/opt/birt/reports/resources"/></Arg>
     </New>
     <New class="org.eclipse.jetty.plus.jndi.EnvEntry">
         <Arg>birt/reports</Arg>
-        <Arg>${birt.reports}</Arg>
+        <Arg><SystemProperty name="birt.reports" default="/opt/birt/reports"/></Arg>
     </New>
     <New class="org.eclipse.jetty.plus.jndi.EnvEntry">
         <Arg>birt/output</Arg>
-        <Arg>${birt.output}</Arg>
+        <Arg><SystemProperty name="birt.output" default="/tmp"/></Arg>
     </New>
 </Configure>

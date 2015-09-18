@@ -1,9 +1,0 @@
-jdbc.name=birt
-db.name=
-db.user=
-db.pass=
-db.host=172.17.42.1
-db.port=5432
-birt.resources=/opt/birt/reports/resources
-birt.reports=/opt/birt/reports
-birt.output=/tmp
