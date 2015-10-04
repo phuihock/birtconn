@@ -6,11 +6,13 @@ from lxml import etree
 from openerp import netsvc, tools
 from openerp.osv import fields, osv
 from openerp.report.interface import report_int
+from openerp.tools.translate import _
 import openerp.pooler as pooler
 import os
 import re
 import requests
 import simplejson as json
+import httplib
 
 
 def serialize(obj):
@@ -276,13 +278,19 @@ class report_birt(report_int):
             '__values': values,
         }
 
+        ir_config_parameter = pool.get("ir.config_parameter")
+        api = ir_config_parameter.get_param(cr, uid, "birtconn.api", context=context)
+        if not api:
+            # fallback, look in to config file
+            api = tools.config.get_misc('birtconn', 'api')
 
-        api = tools.config.get_misc('birtconn', 'api')
+        if not api:
+            raise ValueError("System property 'birtconn.api' is not defined.")
         report_api = os.path.join(api, 'report')
 
-        r = requests.post(report_api, data=json.dumps(data, default=serialize), headers=headers)
-        ext = re.search(r'filename=.+\.(.+);?', r.headers['content-disposition']).group(1)
-        return (r.content, ext)
+        req = requests.post(report_api, data=json.dumps(data, default=serialize), headers=headers)
+        ext = re.search(r'filename=.+\.(.+);?', req.headers['content-disposition']).group(1)
+        return (req.content, ext)
 
 
 class registry(osv.osv):
