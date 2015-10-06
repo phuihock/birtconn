@@ -3,7 +3,7 @@
 from collections import OrderedDict
 from datetime import datetime, date, time
 from lxml import etree
-from openerp import netsvc, tools
+from openerp import netsvc, tools, SUPERUSER_ID
 from openerp.osv import fields, osv
 from openerp.report.interface import report_int
 from openerp.tools.translate import _
@@ -296,13 +296,19 @@ class report_birt(report_int):
 class registry(osv.osv):
     _inherit = 'ir.actions.report.xml'
 
-    def register_all(self, cr):
-        cr.execute("SELECT * FROM ir_act_report_xml WHERE report_name LIKE 'birt.%%' ORDER BY id")
+    def register(self, cr, uid, ids, context=None):
+        svccls = netsvc.Service
+
+        cr.execute("SELECT id, model, report_name FROM ir_act_report_xml WHERE id in (%s)" % (', '.join([str(id) for id in ids]),))
         result = cr.dictfetchall()
-        svcs = netsvc.Service._services
         for r in result:
-            if svcs.has_key('report.' + r['report_name']):
-                continue
-            report_birt('report.' + r['report_name'], r['model'], r['id'])
-        super(registry, self).register_all(cr)
+            name = 'report.' + r['report_name']
+            svccls.remove(name)
+            report_birt(name, r['model'], r['id'])
+
+    def register_all(self, cr):
+        cr.execute("SELECT id FROM ir_act_report_xml WHERE report_type = 'birt' ORDER BY id")
+        ids = [row['id'] for row in cr.dictfetchall()]
+        self.register(cr, SUPERUSER_ID, ids)
+
 registry()
