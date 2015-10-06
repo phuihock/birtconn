@@ -6,11 +6,11 @@
     <Arg>jdbc/birt</Arg>
     <Arg>
         <New class="org.postgresql.ds.PGSimpleDataSource">
-            <Set name="User"><SystemProperty name="DB_USER"/></Set>
-            <Set name="Password"><SystemProperty name="DB_PASS"/></Set>
-            <Set name="DatabaseName"><SystemProperty name="DB_NAME"/></Set>
-            <Set name="ServerName"><SystemProperty name="DB_HOST"/></Set>
-            <Set name="PortNumber" type="int"><SystemProperty name="DB_PORT" default="5432"/></Set>
+            <Set name="User"><SystemProperty name="db.user"/></Set>
+            <Set name="Password"><SystemProperty name="db.pass"/></Set>
+            <Set name="DatabaseName"><SystemProperty name="db.name"/></Set>
+            <Set name="ServerName"><SystemProperty name="db.host"/></Set>
+            <Set name="PortNumber" type="int"><SystemProperty name="db.port" default="5432"/></Set>
         </New>
     </Arg>
     </New>
