@@ -1,8 +1,10 @@
 FROM phuihock/ubuntu:14.04.2_u150724.232741
 MAINTAINER Chang Phui-Hock <phuihock@codekaki.com>
 ENV DEBIAN_FRONTEND=noninteractive JAVA_VER=jdk-8u60-linux-x64 JETTY_VER=jetty-distribution-9.2.10.v20150310
+ENV JETTY_START_JAR=/opt/${JETTY_VER}/start.jar
 ENV PATH=/opt/jdk1.8.0_60/bin:$PATH
 EXPOSE 8080
+VOLUME /opt/birt/reports
 
 RUN echo 'Asia/Kuala_Lumpur' > /etc/timezone && dpkg-reconfigure tzdata
 
