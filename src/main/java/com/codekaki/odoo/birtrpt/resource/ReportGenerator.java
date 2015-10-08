@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,9 +32,9 @@ import org.eclipse.birt.report.engine.api.IRunAndRenderTask;
 import org.eclipse.birt.report.engine.api.RenderOption;
 import org.eclipse.birt.report.engine.api.ReportRunner;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 import com.ibm.icu.util.TimeZone;
+
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 public class ReportGenerator {
     static protected Logger logger = Logger.getLogger(ReportRunner.class.getName());
@@ -78,9 +77,11 @@ public class ReportGenerator {
         flattenParameters(inspector, parameters, map);
 
         IRunAndRenderTask task = reportEngine.createRunAndRenderTask(reportRunnable);
-        for (Entry<String, JsonValue> entry : values.entrySet()) {
-            String name = entry.getKey();
-            setParameter(task, name, map.get(name), entry.getValue());
+        for(IParameterDefnBase param: parameters){
+            String name = param.getName();
+            if(values.containsKey(name)){
+                setParameter(task, name, map.get(name), values.get(name));
+            }
         }
 
         // set report render options
