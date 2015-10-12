@@ -298,13 +298,13 @@ class registry(osv.osv):
 
     def register(self, cr, uid, ids, context=None):
         svccls = netsvc.Service
-
-        cr.execute("SELECT id, model, report_name FROM ir_act_report_xml WHERE id in (%s)" % (', '.join([str(id) for id in ids]),))
-        result = cr.dictfetchall()
-        for r in result:
-            name = 'report.' + r['report_name']
-            svccls.remove(name)
-            report_birt(name, r['model'], r['id'])
+        if ids:
+            cr.execute("SELECT id, model, report_name FROM ir_act_report_xml WHERE id in (%s)" % (', '.join([str(id) for id in ids]),))
+            result = cr.dictfetchall()
+            for r in result:
+                name = 'report.' + r['report_name']
+                svccls.remove(name)
+                report_birt(name, r['model'], r['id'])
 
     def register_all(self, cr):
         cr.execute("SELECT id FROM ir_act_report_xml WHERE report_type = 'birt' ORDER BY id")
