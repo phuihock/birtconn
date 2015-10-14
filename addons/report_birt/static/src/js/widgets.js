@@ -84,11 +84,13 @@ openerp.report_birt = function(instance) {
             this.set({'value': value_});
         },
         store_dom_value: function () {
+            var self = this;
+
             if (!this.get('effective_readonly') && this.$('option:selected').length) {
                 var cur_value = this.get_value(),
-                    new_value = this.$('option:selected').map(function(i, e){
-                        return e.value;
-                    }).toArray();
+                new_value = this.$('select option').map(function(i){
+                    if($(this).is(':selected') == true) return self.values[i][0];}
+                ).toArray();
 
                 // check for additions and removal
                 var changed = _.intersection(new_value, cur_value).length != Math.max(new_value.length, cur_value.length);
@@ -98,16 +100,18 @@ openerp.report_birt = function(instance) {
             }
         },
         render_value: function() {
-            var cur_value = this.get_value();
+            var self = this,
+                cur_value = this.get_value();
             if (!this.get("effective_readonly")) {
                 this.$('option').each(function(i, e){
-                    // '*' which means select all (not a BIRT construct. BIRT supports only constant default values)
-                    if((!!e.value && cur_value[0] == '*') || _.contains(cur_value, e.value)){
+                    // NOTE: cur_value is an array of ids and this.values is an array of options.
+                    // '*' which means select all (not a BIRT construct. BIRT supports only constant default values).
+                    if(cur_value[0] == '*' || _.contains(cur_value, self.values[i][0])){
                         $(this).attr('selected', 'selected');
                     }
                 });
             } else {
-                var ul = $('<ul>'), li; 
+                var ul = $('<ul>'), li;
                 _(cur_value).each(function(e){
                     li = $('<ol>');
                     li.text(e);

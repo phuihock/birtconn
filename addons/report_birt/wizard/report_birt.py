@@ -14,6 +14,17 @@ import requests
 import simplejson as json
 import httplib
 
+def get_report_api(cr, uid, pool, context=None):
+    ir_config_parameter = pool.get("ir.config_parameter")
+    api = ir_config_parameter.get_param(cr, uid, "birtconn.api", context=context)
+    if not api:
+        # fallback, look in to config file
+        api = tools.config.get_misc('birtconn', 'api')
+
+    if not api:
+        raise ValueError("System property 'birtconn.api' is not defined.")
+    return os.path.join(api, 'report')
+
 
 def serialize(obj):
     if isinstance(obj, datetime):
@@ -42,8 +53,7 @@ class report_birt_report_wizard(osv.osv_memory):
                 report_id = found[0]
                 report = report_obj.read(cr, uid, report_id, ['report_file'])
 
-                api = tools.config.get_misc('birtconn', 'api')
-                report_api = os.path.join(api, 'report')
+                report_api = get_report_api(cr, uid, self.pool, context)
 
                 r = requests.get('%s?report_file=%s' % (report_api, report['report_file']))
                 return r.json()
@@ -53,27 +63,37 @@ class report_birt_report_wizard(osv.osv_memory):
         res = {}
         for param in parameters:
             name = param['name']
-            ptype = param['type'].split('/')
-            if ptype[0] == "scalar":
-                fieldType = param['fieldType']
-                if fieldType == 'time':
-                    # 'time' is not supported by OpenERP by default, but datetime is. So, we treat time as datetime field
-                    # and use our custom timepicker widget.
-                    fieldType = 'datetime'
+            if name == '__timezone' and 'tz' in context:
+                res[name] = context['tz']
+            elif name == '__lang' and 'lang' in context:
+                res[name] = context['lang']
+            else:
+                ptype = param['type'].split('/')
+                if ptype[0] == "scalar":
+                    fieldType = param['fieldType']
+                    if fieldType == 'time':
+                        # 'time' is not supported by OpenERP by default, but datetime is. So, we treat time as datetime field
+                        # and use our custom timepicker widget.
+                        fieldType = 'datetime'
 
-                if fieldType == 'char' and ptype[1] == 'multi-value':
-                    val = param['defaultValue']
-                elif fieldType in ['boolean']:
-                    # unfortunately, boolean field setter converts False to 'False', a truthful value.
-                    # so we override it with the raw value which is in the correct type.
-                    val = param['defaultValue']
-                else:
-                    val = getattr(fields, fieldType)(string=param['promptText'])._symbol_set[1](param['defaultValue'])
-                res[name] = val
-            elif ptype[0] == "group":
-                parameters_g = param['parameters']
-                res_g = self.default_get_recursively(cr, uid, fields_list, parameters_g, context)
-                res.update(res_g)
+                    if fieldType == 'char' and ptype[1] == 'multi-value':
+                        val = param['defaultValue']
+                    elif fieldType in ['boolean']:
+                        # unfortunately, boolean field setter converts False to 'False', a truthful value.
+                        # so we override it with the raw value which is in the correct type.
+                        val = param['defaultValue']
+                    else:
+                        conv = getattr(fields, fieldType)(string=param['promptText'])._symbol_set[1]
+                        v1 = param['defaultValue']
+                        if isinstance(v1, (list, tuple)):
+                            val = [conv(v) for v in v1]
+                        else:
+                            val = conv(v1)
+                    res[name] = val
+                elif ptype[0] == "group":
+                    parameters_g = param['parameters']
+                    res_g = self.default_get_recursively(cr, uid, fields_list, parameters_g, context)
+                    res.update(res_g)
         return res
 
     def default_get(self, cr, uid, fields_list, context=None):
@@ -98,14 +118,8 @@ class report_birt_report_wizard(osv.osv_memory):
 
             # refer to field_to_dict if you don't understand why
             if 'selection' in param and param['selection']:
-                # NOTE: key must be a string, or else the dropdown box will not
-                # display the choices correctly.
-                # however, this will transform non-string value such as boolean,
-                # integer into string, which must be taken care of when sending
-                # the values to report server.
-                meta['selection'] = [(unicode(x), y) for (x, y) in param['selection']]
-                if ptype[-1] == 'simple':
-                    meta['type'] = 'selection'  # override default input type
+                meta['selection'] = param['selection']
+                meta['type'] = 'selection'  # override default input type
 
             meta['string'] = param['promptText']
             meta['required'] = param['required']
@@ -189,6 +203,25 @@ class report_birt_report_wizard(osv.osv_memory):
         values = self.read(cr, uid, ids[0], ['__values'], context=context)['__values']
         values = json.loads(values)
 
+        def conv(v1):
+            # cast value to the correct type with OpenERP's internal setter
+            v2 = getattr(fields, t1)(**descriptor)._symbol_set[1](v1)
+
+            # but sometimes, we have to override value to a different type because
+            # OpenERP is slightly different/not supporting param type BIRT expects.
+            if t1 == 'char' and s1 == 'multi-value':
+                # our multivalue checkbox widget that sends values in an array
+                if not isinstance(v1, (list, tuple)):
+                    v1 = [v1]
+                v2 = v1
+            elif t1 == 'time':
+                # NOTE: time is represented as datetime field with custom timepicker widget
+                time_format = lang_dict['time_format']
+                cc = time_format.count(':') + 1
+                v2 = datetime.strptime(':'.join(v1.split(':')[:cc]), time_format)
+                v2 = getattr(fields, 'datetime')(**descriptor)._symbol_set[1](v1)
+            return v2
+
         report_name = context['report_name']
         fg = self.fields_get(cr, uid, context={'report_name': report_name})
         for (name, descriptor) in fg.items():
@@ -197,23 +230,10 @@ class report_birt_report_wizard(osv.osv_memory):
                 t1 = descriptor['context']['type']
                 v1 = values[name]
 
-                # cast value to the correct type with OpenERP's internal setter
-                v2 = getattr(fields, t1)(**descriptor)._symbol_set[1](v1)
-
-                # but sometimes, we have to override value to a different type because
-                # OpenERP is slightly different/not supporting param type BIRT expects.
-                if t1 == 'char' and s1 == 'multi-value':
-                    # our multivalue checkbox widget that sends values in an array
-                    if not isinstance(v1, (list, tuple)):
-                        v1 = [v1]
-                    v2 = v1
-                elif t1 == 'time':
-                    # NOTE: time is represented as datetime field with custom timepicker widget
-                    time_format = lang_dict['time_format']
-                    cc = time_format.count(':') + 1
-                    v2 = datetime.strptime(':'.join(v1.split(':')[:cc]), time_format)
-                    v2 = getattr(fields, 'datetime')(**descriptor)._symbol_set[1](v1)
-
+                if isinstance(v1, (list, tuple)):
+                    v2 = [conv(v) for v in v1]
+                else:
+                    v2 = conv(v1)
                 values[name] = v2
 
         return {
@@ -278,15 +298,7 @@ class report_birt(report_int):
             '__values': values,
         }
 
-        ir_config_parameter = pool.get("ir.config_parameter")
-        api = ir_config_parameter.get_param(cr, uid, "birtconn.api", context=context)
-        if not api:
-            # fallback, look in to config file
-            api = tools.config.get_misc('birtconn', 'api')
-
-        if not api:
-            raise ValueError("System property 'birtconn.api' is not defined.")
-        report_api = os.path.join(api, 'report')
+        report_api = get_report_api(cr, uid, pool, context)
 
         req = requests.post(report_api, data=json.dumps(data, default=serialize), headers=headers)
         ext = re.search(r'filename=.+\.(.+);?', req.headers['content-disposition']).group(1)
