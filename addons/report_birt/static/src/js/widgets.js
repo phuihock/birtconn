@@ -105,9 +105,15 @@ openerp.report_birt = function(instance) {
             if (!this.get("effective_readonly")) {
                 this.$('option').each(function(i, e){
                     // NOTE: cur_value is an array of ids and this.values is an array of options.
-                    // '*' which means select all (not a BIRT construct. BIRT supports only constant default values).
-                    if(cur_value[0] == '*' || _.contains(cur_value, self.values[i][0])){
-                        $(this).attr('selected', 'selected');
+                    // select all if:
+                    // b. type is an number and default is Integer.MIN_VALUE
+                    // a. type is a string and default is '*'
+
+                    // NOTE: both are not a BIRT construct. BIRT supports only constant default values.
+                    if(cur_value[0] == -Math.pow(2, 31) || cur_value[0] == '*' || _.contains(cur_value, self.values[i][0])){
+                        if($(this).val() !== ""){
+                            $(this).attr('selected', 'selected');
+                        }
                     }
                 });
             } else {
