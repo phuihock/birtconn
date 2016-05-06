@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 if test -f "$1"; then
     for var in $(cat "$1"); do
         export ${var};
