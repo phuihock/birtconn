@@ -67,6 +67,12 @@ class report_birt_report_wizard(osv.osv_memory):
                 res[name] = context['tz']
             elif name == '__lang' and 'lang' in context:
                 res[name] = context['lang']
+            elif name == '__active_ids' and 'active_ids' in context:
+                res[name] = context['active_ids']
+            elif name == '__active_id' and 'active_id' in context:
+                res[name] = context['active_id']
+            elif name == '__active_model' and 'active_model' in context:
+                res[name] = context['active_model']
             else:
                 ptype = param['type'].split('/')
                 if ptype[0] == "scalar":
