@@ -12,7 +12,7 @@ import os
 import re
 import requests
 import simplejson as json
-import httplib
+
 
 def get_report_api(cr, uid, pool, context=None):
     ir_config_parameter = pool.get("ir.config_parameter")
@@ -38,7 +38,7 @@ def serialize(obj):
 
 class report_birt_report_wizard(osv.osv_memory):
     _name = 'report_birt.report_wizard'
-    _description = 'Birt Report Wizard'
+    _description = 'BIRT Report Wizard'
 
     _columns = {
         '__report_name': fields.char(size=64, string="Report Name"),
@@ -63,16 +63,10 @@ class report_birt_report_wizard(osv.osv_memory):
         res = {}
         for param in parameters:
             name = param['name']
-            if name == '__timezone' and 'tz' in context:
-                res[name] = context['tz']
-            elif name == '__lang' and 'lang' in context:
-                res[name] = context['lang']
-            elif name == '__active_ids' and 'active_ids' in context:
-                res[name] = context['active_ids']
-            elif name == '__active_id' and 'active_id' in context:
-                res[name] = context['active_id']
-            elif name == '__active_model' and 'active_model' in context:
-                res[name] = context['active_model']
+            if name.startswith('__'):
+                key = name[2:]
+                if key in context:
+                    res[name] = context[key]
             else:
                 ptype = param['type'].split('/')
                 if ptype[0] == "scalar":
@@ -290,19 +284,19 @@ class report_birt(report_int):
         self.table = table
         self.reportxml_id = reportxml_id
 
-    def create(self, cr, uid, ids, values, context):
+    def create(self, cr, uid, ids, vals, context):
         pool = pooler.get_pool(cr.dbname)
         pool_reportxml = pool.get('ir.actions.report.xml')
         reportxml = pool_reportxml.browse(cr, uid, self.reportxml_id)
         headers = {'Content-type': 'application/json', 'Accept': 'application/octet-stream'}
 
-        if 'active_ids' in context:
-            values.update(active_ids=context['active_ids'])
+        for k, v in context.items():
+            vals['__%s' % k] = v
 
         data = {
             'reportFile': reportxml.report_file,
-            '__values': values,
-        }
+            '__values': vals,
+            }
 
         report_api = get_report_api(cr, uid, pool, context)
 

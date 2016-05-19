@@ -108,7 +108,7 @@ public class ReportResource {
 
             try {
                 String format = values.getString("__format", "pdf");
-                TimeZone timeZone = TimeZone.getTimeZone(values.getString("__timezone", "UTC"));
+                TimeZone timeZone = TimeZone.getTimeZone(values.getString("__tz", "UTC"));
                 String path = getPath(UUID.randomUUID().toString(), format).getPath();
                 generator.run(reportRunnable, format, timeZone, htmlType, path, values);
                 return buildFileResponseOk(reportFile, path, format);
