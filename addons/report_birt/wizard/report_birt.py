@@ -20,7 +20,6 @@ def get_report_api(cr, uid, pool, context=None):
     if not api:
         # fallback, look in to config file
         api = tools.config.get_misc('birtconn', 'api')
-
     if not api:
         raise ValueError("System property 'birtconn.api' is not defined.")
     return os.path.join(api, 'report')
@@ -202,7 +201,6 @@ class report_birt_report_wizard(osv.osv_memory):
         lang_dict = self._get_lang_dict(cr, uid, context)
         values = self.read(cr, uid, ids[0], ['__values'], context=context)['__values']
         values = json.loads(values)
-
         def conv(v1):
             # cast value to the correct type with OpenERP's internal setter
             v2 = getattr(fields, t1)(**descriptor)._symbol_set[1](v1)
@@ -235,7 +233,6 @@ class report_birt_report_wizard(osv.osv_memory):
                 else:
                     v2 = conv(v1)
                 values[name] = v2
-
         return {
             'type': 'ir.actions.report.xml',
             'report_name': context['report_name'],
@@ -291,7 +288,9 @@ class report_birt(report_int):
         headers = {'Content-type': 'application/json', 'Accept': 'application/octet-stream'}
 
         for k, v in context.items():
-            vals['__%s' % k] = v
+            akey = '__%s' % k
+            if akey not in vals:
+                vals[akey] = v
 
         data = {
             'reportFile': reportxml.report_file,
