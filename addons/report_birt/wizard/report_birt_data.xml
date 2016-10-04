@@ -1,3 +1,8 @@
 <openerp>
-    <data></data>
+    <data noupdate="1">
+        <record id="report_birt_birtconn_api" model="ir.config_parameter">
+            <field name="key">birtconn.api</field>
+            <field name="value">http://birtconn:8080/birt/api</field>
+        </record>
+    </data>
 </openerp>
