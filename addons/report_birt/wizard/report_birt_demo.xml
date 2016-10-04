@@ -1,13 +1,19 @@
 <openerp>
     <data>
-        <report id="report_birt.report_test"
-                string="Test"
-                model="report_birt.report_wizard"
-                name="birt.test"
-                file="test.rptdesign"
-                header="False"/>
+        <menuitem id="menu_birt_root" parent="base.menu_reporting" name="BIRT" sequence="200"/>
 
-        <record id="action_birt_test_parameters_rpt" model="ir.actions.act_window">
+        <!-- A BIRT report declaration -->
+        <record id="report_birt_test" model="ir.actions.report.xml">
+            <field name="name">Test</field>
+            <field name="report_name">birt.test</field>
+            <field name="model">report_birt.report_wizard</field>
+            <field name="report_type">birt</field>
+            <field name="auto" eval="False"/>
+            <field name="report_rml">birtconn/reports/test.rptdesign</field>
+        </record>
+
+        <!-- Method 1: an action which you can bind to a button or a menu item (see below) -->
+        <record id="action_birt_test" model="ir.actions.act_window">
             <field name="name">Test</field>
             <field name="res_model">report_birt.report_wizard</field>
             <field name="view_type">form</field>
@@ -16,13 +22,23 @@
             <field name="target">new</field>
         </record>
 
-        <menuitem id="menu_birt_root" parent="base.menu_reporting" name="BIRT" sequence="200"/>
-        <menuitem
-            name="Test"
-            parent="menu_birt_root"
-            action="action_birt_test_parameters_rpt"
-            id="menu_birt_test_parameters_rpt"
-            groups="base.group_no_one"
-            icon="STOCK_PRINT"/>
+        <menuitem id="menu_birt_test_parameters_rpt" parent="menu_birt_root" action="action_birt_test" name="Test"/>
+
+        <!-- Method 2: A example print option (go to employee form view, Print/Test)-->
+        <record id="report_birt_test2" model="ir.actions.report.xml">
+            <field name="name">Test 2</field>
+            <field name="report_name">birt.test2</field>
+            <field name="model">report_birt.report_wizard</field>
+            <field name="report_type">birt</field>
+            <field name="auto" eval="False"/>
+            <field name="report_rml">birtconn/reports/test2.rptdesign</field>
+        </record>
+
+        <record model="ir.values" id="action_print_test2">
+          <field name="name">Test BIRT 2</field>
+          <field name="key2">client_print_multi</field>
+          <field name="value" eval="'ir.actions.report.xml,' +str(ref('report_birt_test2'))" />
+          <field name="model">hr.employee</field>
+        </record>
     </data>
 </openerp>
