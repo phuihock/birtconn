@@ -300,7 +300,7 @@ class report_birt(report_int):
         report_api = get_report_api(cr, uid, pool, context)
 
         req = requests.post(report_api, data=json.dumps(data, default=serialize), headers=headers)
-        ext = re.search(r'filename=.+\.(.+);?', req.headers['content-disposition']).group(1)
+        ext = re.search(r'filename=.+\.(.+);?', req.headers.get('content-disposition')).group(1)
         return (req.content, ext)
 
 
