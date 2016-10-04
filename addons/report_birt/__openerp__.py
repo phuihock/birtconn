@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 
 {
-    'name': 'Birt Report Adapter',
+    'name': 'BIRT Report Adapter',
     'version': '1.0',
     'category': 'Tools',
     'description': """
-This module allows users to generate reports designed in Eclipse Birt
+This module allows users to generate reports designed in Eclipse BIRT
 =====================================================================
 
 """,
     'author': 'Codekaki Systems (R49045/14)',
     'website': 'http://codekaki.com',
-    'summary': 'Birt, Report',
+    'summary': 'BIRT, Report',
     'depends': ['base'],
     'demo': [
         'wizard/report_birt_demo.xml',
